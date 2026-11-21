@@ -12,6 +12,7 @@ void showAuthPopup(String message) {
     context: context,
     useRootNavigator: true,
     barrierDismissible: false,
+    barrierColor: const Color(0x33000000),
     builder: (_) => _AutoDismissAuthDialog(message: message),
   );
 }
@@ -45,25 +46,31 @@ class _AutoDismissAuthDialogState extends State<_AutoDismissAuthDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: const Color(0xFF211820),
+      backgroundColor: const Color(0xFFFFFDF8),
+      elevation: 12,
+      shadowColor: const Color(0x33000000),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(22),
-        side: const BorderSide(color: Color(0xFFB99552), width: 1),
+        side: const BorderSide(color: Color(0xFFD6B36A), width: 1),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 30),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.check_circle_rounded, color: Color(0xFF65D99A), size: 58),
+            const Icon(
+              Icons.check_circle_rounded,
+              color: Color(0xFF26965B),
+              size: 58,
+            ),
             const SizedBox(height: 16),
             Text(
               widget.message,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                color: Colors.white,
+                color: Color(0xFF211B18),
                 fontSize: 19,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ],
