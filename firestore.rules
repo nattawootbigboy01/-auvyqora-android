@@ -1,7 +1,23 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Secure foundation: no client access until explicit rules are reviewed.
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+
+    match /dramas/{dramaId} {
+      allow read: if isAdmin() || resource.data.status == 'published';
+      allow create, update, delete: if isAdmin();
+
+      match /episodes/{episodeId} {
+        function parentIsPublished() {
+          return get(/databases/$(database)/documents/dramas/$(dramaId)).data.status == 'published';
+        }
+        allow read: if isAdmin() || (parentIsPublished() && resource.data.status == 'published');
+        allow create, update, delete: if isAdmin();
+      }
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
