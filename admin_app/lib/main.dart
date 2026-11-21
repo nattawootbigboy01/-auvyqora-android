@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'content_management.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -314,7 +315,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
       body: SafeArea(
         child: _selected == 0
             ? _overview()
-            : _sectionPlaceholder(title),
+            : _selected == 1
+                ? ManageDramasPage()
+                : _selected == 2
+                    ? const ManageEpisodesPage()
+                    : _sectionPlaceholder(title),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selected,
