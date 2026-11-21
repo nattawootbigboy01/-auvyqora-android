@@ -1,0 +1,12 @@
+# Release checklist
+- [ ] Generate Android runner with Flutter stable.
+- [ ] Set applicationId, app label, minSdk and targetSdk.
+- [ ] Configure Firebase through a secure workflow; never commit service-account keys.
+- [ ] Implement verified email authentication and server-enforced roles.
+- [ ] Connect HLS playback with authorized URLs.
+- [ ] Build separate admin dashboard with server-side admin permissions.
+- [ ] Add privacy policy, terms, content-rights process, and account deletion flow.
+- [ ] Configure test ad units and consent flow before production units.
+- [ ] Test multiple Android sizes and network conditions.
+- [ ] Run flutter analyze, flutter test, and release build.
+- [ ] Review Play Store data safety and content policies.
