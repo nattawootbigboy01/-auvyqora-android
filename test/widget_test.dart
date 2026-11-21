@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:auvyqora/app_messenger.dart';
 import 'package:auvyqora/data/sample_catalog.dart';
 import 'package:auvyqora/main.dart';
-import 'package:auvyqora/app_messenger.dart';
 import 'package:auvyqora/screens/drama_detail_screen.dart';
 import 'package:auvyqora/screens/player_screen.dart';
 import 'package:auvyqora/screens/sign_in_screen.dart';
@@ -68,6 +68,7 @@ void main() {
     expect(find.text('อีเมล'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
   testWidgets('auth success popup is readable and dismisses automatically', (tester) async {
     useCompactViewport(tester);
     await tester.pumpWidget(const AuvyqoraApp());
@@ -98,6 +99,8 @@ void main() {
     expect(find.text('ออกจากระบบแล้ว'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pump(const Duration(milliseconds: 1800));
+    await tester.pumpAndSettle();
+    expect(find.text('ออกจากระบบแล้ว'), findsNothing);
+    expect(tester.takeException(), isNull);
   });
-
 }
