@@ -56,7 +56,7 @@ class ManageDramasPage extends StatelessWidget {
     body: StreamBuilder(
       stream: _repo.watchDramas(),
       builder: (context, snapshot) {
-        if (snapshot.hasError) return _error('โหลดละครไม่สำเร็จ: \${snapshot.error}');
+        if (snapshot.hasError) return _error('โหลดละครไม่สำเร็จ: ${snapshot.error}');
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         final docs = snapshot.data!.docs;
         if (docs.isEmpty) return const _empty(Icons.movie_outlined, 'ยังไม่มีละคร', 'กดเพิ่มละครเพื่อเริ่มต้น');
@@ -70,7 +70,7 @@ class ManageDramasPage extends StatelessWidget {
             return Card(child: ListTile(
               leading: const Icon(Icons.movie, color: _gold),
               title: Text((data['title'] ?? 'ไม่มีชื่อ').toString()),
-              subtitle: Text('\${data['genre'] ?? 'ไม่ระบุแนว'} • \${data['status'] == _published ? 'เผยแพร่' : 'ฉบับร่าง'}'),
+              subtitle: Text('${data['genre'] ?? 'ไม่ระบุแนว'} • ${data['status'] == _published ? 'เผยแพร่' : 'ฉบับร่าง'}'),
               trailing: PopupMenuButton<String>(
                 onSelected: (action) async {
                   if (action == 'edit') await _dramaForm(context, doc.id, data);
@@ -156,7 +156,7 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
   Widget build(BuildContext context) => StreamBuilder(
     stream: _repo.watchDramas(),
     builder: (context, dramasSnapshot) {
-      if (dramasSnapshot.hasError) return _error('โหลดละครไม่สำเร็จ: \${dramasSnapshot.error}');
+      if (dramasSnapshot.hasError) return _error('โหลดละครไม่สำเร็จ: ${dramasSnapshot.error}');
       if (!dramasSnapshot.hasData) return const Center(child: CircularProgressIndicator());
       final dramas = dramasSnapshot.data!.docs;
       if (dramas.isEmpty) return const _empty(Icons.video_library, 'ยังไม่มีละคร', 'เพิ่มละครก่อนจัดการตอน');
@@ -170,7 +170,7 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
         Expanded(child: StreamBuilder(
           stream: _repo.watchEpisodes(selectedId),
           builder: (context, episodesSnapshot) {
-            if (episodesSnapshot.hasError) return _error('โหลดตอนไม่สำเร็จ: \${episodesSnapshot.error}');
+            if (episodesSnapshot.hasError) return _error('โหลดตอนไม่สำเร็จ: ${episodesSnapshot.error}');
             if (!episodesSnapshot.hasData) return const Center(child: CircularProgressIndicator());
             final episodes = episodesSnapshot.data!.docs;
             if (episodes.isEmpty) return const _empty(Icons.video_library, 'ยังไม่มีตอน', 'กดเพิ่มตอนใหม่ด้านล่าง');
@@ -180,9 +180,9 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
               itemBuilder: (context, index) {
                 final doc = episodes[index]; final data = doc.data();
                 return Card(child: ListTile(
-                  leading: CircleAvatar(child: Text('\${data['number'] ?? index + 1}')),
+                  leading: CircleAvatar(child: Text('${data['number'] ?? index + 1}')),
                   title: Text((data['title'] ?? 'ไม่มีชื่อตอน').toString()),
-                  subtitle: Text('\${data['durationLabel'] ?? ''} • \${data['status'] == _published ? 'เผยแพร่' : 'ฉบับร่าง'}'),
+                  subtitle: Text('${data['durationLabel'] ?? ''} • ${data['status'] == _published ? 'เผยแพร่' : 'ฉบับร่าง'}'),
                   trailing: PopupMenuButton<String>(
                     onSelected: (v) async {
                       if (v == 'edit') await _episodeForm(context, selectedId, doc.id, data);
