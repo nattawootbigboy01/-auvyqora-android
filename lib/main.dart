@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'app_messenger.dart';
 import 'screens/home_screen.dart';
 import 'theme/app_theme.dart';
 
@@ -16,6 +17,7 @@ class AuvyqoraApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
         title: 'AUVYQORA',
         debugShowCheckedModeBanner: false,
+        scaffoldMessengerKey: rootScaffoldMessengerKey,
         theme: AppTheme.dark,
         home: const HomeScreen(),
       );
