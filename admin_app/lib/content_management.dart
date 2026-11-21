@@ -59,7 +59,7 @@ class ManageDramasPage extends StatelessWidget {
         if (snapshot.hasError) return _error('โหลดละครไม่สำเร็จ: ${snapshot.error}');
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         final docs = snapshot.data!.docs;
-        if (docs.isEmpty) return const _empty(Icons.movie_outlined, 'ยังไม่มีละคร', 'กดเพิ่มละครเพื่อเริ่มต้น');
+        if (docs.isEmpty) return _empty(Icons.movie_outlined, 'ยังไม่มีละคร', 'กดเพิ่มละครเพื่อเริ่มต้น');
         return ListView.separated(
           padding: const EdgeInsets.all(16),
           itemCount: docs.length,
@@ -73,8 +73,11 @@ class ManageDramasPage extends StatelessWidget {
               subtitle: Text('${data['genre'] ?? 'ไม่ระบุแนว'} • ${data['status'] == _published ? 'เผยแพร่' : 'ฉบับร่าง'}'),
               trailing: PopupMenuButton<String>(
                 onSelected: (action) async {
-                  if (action == 'edit') await _dramaForm(context, doc.id, data);
-                  if (action == 'delete') await _deleteDrama(context, doc.id);
+                  if (action == 'edit') {
+                    await _dramaForm(context, doc.id, data);
+                  } else if (action == 'delete') {
+                    await _deleteDrama(context, doc.id);
+                  }
                 },
                 itemBuilder: (_) => const [
                   PopupMenuItem(value: 'edit', child: Text('แก้ไข')),
@@ -110,7 +113,7 @@ class ManageDramasPage extends StatelessWidget {
           TextField(controller: synopsis, minLines: 3, maxLines: 5, decoration: const InputDecoration(labelText: 'เรื่องย่อ')),
           SwitchListTile(contentPadding: EdgeInsets.zero, value: featured, onChanged: (v) => setState(() => featured = v), title: const Text('แนะนำบนหน้าแรก')),
           DropdownButtonFormField<String>(
-            value: status, decoration: const InputDecoration(labelText: 'สถานะ'),
+            initialValue: status, decoration: const InputDecoration(labelText: 'สถานะ'),
             items: const [DropdownMenuItem(value: _draft, child: Text('ฉบับร่าง')), DropdownMenuItem(value: _published, child: Text('เผยแพร่'))],
             onChanged: (v) => setState(() => status = v ?? _draft),
           ),
@@ -159,11 +162,11 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
       if (dramasSnapshot.hasError) return _error('โหลดละครไม่สำเร็จ: ${dramasSnapshot.error}');
       if (!dramasSnapshot.hasData) return const Center(child: CircularProgressIndicator());
       final dramas = dramasSnapshot.data!.docs;
-      if (dramas.isEmpty) return const _empty(Icons.video_library, 'ยังไม่มีละคร', 'เพิ่มละครก่อนจัดการตอน');
+      if (dramas.isEmpty) return _empty(Icons.video_library, 'ยังไม่มีละคร', 'เพิ่มละครก่อนจัดการตอน');
       final selectedId = dramas.any((d) => d.id == _selectedId) ? _selectedId! : dramas.first.id;
       return Column(children: [
         Padding(padding: const EdgeInsets.all(16), child: DropdownButtonFormField<String>(
-          value: selectedId, decoration: const InputDecoration(labelText: 'เลือกละคร'),
+          initialValue: selectedId, decoration: const InputDecoration(labelText: 'เลือกละคร'),
           items: [for (final d in dramas) DropdownMenuItem(value: d.id, child: Text((d.data()['title'] ?? '').toString()))],
           onChanged: (v) => setState(() => _selectedId = v),
         )),
@@ -173,7 +176,7 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
             if (episodesSnapshot.hasError) return _error('โหลดตอนไม่สำเร็จ: ${episodesSnapshot.error}');
             if (!episodesSnapshot.hasData) return const Center(child: CircularProgressIndicator());
             final episodes = episodesSnapshot.data!.docs;
-            if (episodes.isEmpty) return const _empty(Icons.video_library, 'ยังไม่มีตอน', 'กดเพิ่มตอนใหม่ด้านล่าง');
+            if (episodes.isEmpty) return _empty(Icons.video_library, 'ยังไม่มีตอน', 'กดเพิ่มตอนใหม่ด้านล่าง');
             return ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: episodes.length,
@@ -185,8 +188,11 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
                   subtitle: Text('${data['durationLabel'] ?? ''} • ${data['status'] == _published ? 'เผยแพร่' : 'ฉบับร่าง'}'),
                   trailing: PopupMenuButton<String>(
                     onSelected: (v) async {
-                      if (v == 'edit') await _episodeForm(context, selectedId, doc.id, data);
-                      if (v == 'delete') await _deleteEpisode(context, selectedId, doc.id);
+                      if (v == 'edit') {
+                        await _episodeForm(context, selectedId, doc.id, data);
+                      } else if (v == 'delete') {
+                        await _deleteEpisode(context, selectedId, doc.id);
+                      }
                     },
                     itemBuilder: (_) => const [PopupMenuItem(value: 'edit', child: Text('แก้ไข')), PopupMenuItem(value: 'delete', child: Text('ลบ'))],
                   ),
@@ -214,7 +220,7 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
         TextField(controller: title, decoration: const InputDecoration(labelText: 'ชื่อตอน')),
         TextField(controller: number, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'หมายเลขตอน')),
         TextField(controller: duration, decoration: const InputDecoration(labelText: 'ความยาว เช่น 2 นาที')),
-        DropdownButtonFormField<String>(value: status, decoration: const InputDecoration(labelText: 'สถานะ'),
+        DropdownButtonFormField<String>(initialValue: status, decoration: const InputDecoration(labelText: 'สถานะ'),
           items: const [DropdownMenuItem(value: _draft, child: Text('ฉบับร่าง')), DropdownMenuItem(value: _published, child: Text('เผยแพร่'))],
           onChanged: (v) => setState(() => status = v ?? _draft)),
       ])),
