@@ -25,11 +25,73 @@ jobs:
         run: flutter analyze
       - name: Widget tests
         run: flutter test
+      - name: Configure Firebase for Android build
+        if: env.FIREBASE_CONFIG != ''
+        env:
+          FIREBASE_CONFIG: ${{ secrets.FIREBASE_ANDROID_GOOGLE_SERVICES_JSON }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          config_text = os.environ["FIREBASE_CONFIG"]
+          config = json.loads(config_text)
+          app_id = "com.auvyqora.auvyqora"
+          clients = config.get("client", [])
+          package_names = [
+              client.get("client_info", {}).get("android_client_info", {}).get("package_name")
+              for client in clients
+          ]
+          if app_id not in package_names:
+              raise SystemExit(
+                  "Firebase package mismatch. Expected "
+                  + app_id
+                  + "; found "
+                  + ", ".join(name for name in package_names if name)
+              )
+
+          gradle = Path("android/app/build.gradle.kts")
+          settings = Path("android/settings.gradle.kts")
+          gradle_text = gradle.read_text()
+          settings_text = settings.read_text()
+          if 'applicationId = "com.auvyqora.auvyqora"' not in gradle_text:
+              raise SystemExit("Generated Android applicationId does not match the expected Firebase package.")
+
+          if 'id("com.google.gms.google-services") version "4.4.4" apply false' not in settings_text:
+              settings_text = settings_text.replace(
+                  "plugins {",
+                  'plugins {\n    id("com.google.gms.google-services") version "4.4.4" apply false',
+                  1,
+              )
+          if 'id("com.google.gms.google-services")' not in gradle_text:
+              gradle_text = gradle_text.replace(
+                  "plugins {",
+                  'plugins {\n    id("com.google.gms.google-services")',
+                  1,
+              )
+          gradle_text = gradle_text.replace(
+              "minSdk = flutter.minSdkVersion",
+              "minSdk = 24",
+          )
+          gradle.write_text(gradle_text)
+          settings.write_text(settings_text)
+          config_path = Path("android/app/google-services.json")
+          config_path.write_text(config_text)
+          print("Firebase Android configuration validated and installed for this build.")
+          PY
       - name: Build debug APK
+        if: env.FIREBASE_CONFIG != ''
+        env:
+          FIREBASE_CONFIG: ${{ secrets.FIREBASE_ANDROID_GOOGLE_SERVICES_JSON }}
         run: flutter build apk --debug
       - name: Upload debug APK
+        if: env.FIREBASE_CONFIG != ''
         uses: actions/upload-artifact@v4
         with:
-          name: auvyqora-debug-apk
+          name: auvyqora-firebase-debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
+      - name: Explain skipped Firebase build
+        if: env.FIREBASE_CONFIG == ''
+        run: echo "Firebase build skipped because FIREBASE_ANDROID_GOOGLE_SERVICES_JSON is not configured."

@@ -4,6 +4,7 @@ import '../models/drama.dart';
 import '../theme/app_theme.dart';
 import '../widgets/drama_card.dart';
 import 'drama_detail_screen.dart';
+import 'sign_in_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -24,7 +25,14 @@ class HomeScreen extends StatelessWidget {
         title: const Text('AUVYQORA', style: TextStyle(letterSpacing: 2, fontWeight: FontWeight.w900)),
         actions: [
           IconButton(onPressed: () {}, icon: const Icon(Icons.search)),
-          IconButton(onPressed: () {}, icon: const Icon(Icons.person_outline)),
+          IconButton(
+            tooltip: 'บัญชี',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(builder: (_) => const SignInScreen()),
+            ),
+            icon: const Icon(Icons.person_outline),
+          ),
         ],
       ),
       body: ListView(

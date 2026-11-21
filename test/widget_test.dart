@@ -64,6 +64,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('เข้าสู่ระบบ'), findsOneWidget);
+    expect(find.text('อีเมล'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
