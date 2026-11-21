@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../app_messenger.dart';
 import '../theme/app_theme.dart';
 import 'home_screen.dart';
 
@@ -93,6 +94,11 @@ class _SignInScreenState extends State<SignInScreen> {
             MaterialPageRoute<void>(builder: (_) => const HomeScreen()),
             (route) => false,
           );
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            rootScaffoldMessengerKey.currentState?.showSnackBar(
+              const SnackBar(content: Text('เข้าสู่ระบบสำเร็จ')),
+            );
+          });
         }
       }
     } on FirebaseAuthException catch (error) {
