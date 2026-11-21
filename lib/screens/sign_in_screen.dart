@@ -95,9 +95,7 @@ class _SignInScreenState extends State<SignInScreen> {
             (route) => false,
           );
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            rootScaffoldMessengerKey.currentState?.showSnackBar(
-              const SnackBar(content: Text('เข้าสู่ระบบสำเร็จ')),
-            );
+            showAuthPopup('เข้าสู่ระบบสำเร็จ');
           });
         }
       }
