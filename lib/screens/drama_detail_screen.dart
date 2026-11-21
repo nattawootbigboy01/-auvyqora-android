@@ -40,13 +40,13 @@ class DramaDetailScreen extends StatelessWidget {
             const SizedBox(height: 12),
             Text(drama.synopsis, style: const TextStyle(height: 1.5, color: Colors.white70)),
             const SizedBox(height: 24),
-            Text('ทั้งหมด \${drama.episodes.length} ตอน', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text('ทั้งหมด ${drama.episodes.length} ตอน', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             ...drama.episodes.map(
               (episode) => Card(
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                  leading: CircleAvatar(backgroundColor: AppTheme.burgundy, child: Text('\${episode.number}')),
+                  leading: CircleAvatar(backgroundColor: AppTheme.burgundy, child: Text('${episode.number}')),
                   title: Text(episode.title, maxLines: 2, overflow: TextOverflow.ellipsis),
                   subtitle: Text(episode.durationLabel, maxLines: 1, overflow: TextOverflow.ellipsis),
                   trailing: const Icon(Icons.play_arrow),
