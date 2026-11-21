@@ -144,13 +144,13 @@ jobs:
           if 'id("com.google.gms.google-services") version "4.4.4" apply false' not in settings_text:
               settings_text = settings_text.replace(
                   "plugins {",
-                  'plugins {\\n    id("com.google.gms.google-services") version "4.4.4" apply false',
+                  'plugins {\n    id("com.google.gms.google-services") version "4.4.4" apply false',
                   1,
               )
           if 'id("com.google.gms.google-services")' not in gradle_text:
               gradle_text = gradle_text.replace(
                   "plugins {",
-                  'plugins {\\n    id("com.google.gms.google-services")',
+                  'plugins {\n    id("com.google.gms.google-services")',
                   1,
               )
           gradle_text = gradle_text.replace("minSdk = flutter.minSdkVersion", "minSdk = 24")
