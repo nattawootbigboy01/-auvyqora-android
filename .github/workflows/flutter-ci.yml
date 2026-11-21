@@ -10,6 +10,8 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    env:
+      FIREBASE_CONFIG: ${{ secrets.FIREBASE_ANDROID_GOOGLE_SERVICES_JSON }}
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -27,8 +29,6 @@ jobs:
         run: flutter test
       - name: Configure Firebase for Android build
         if: env.FIREBASE_CONFIG != ''
-        env:
-          FIREBASE_CONFIG: ${{ secrets.FIREBASE_ANDROID_GOOGLE_SERVICES_JSON }}
         run: |
           python3 - <<'PY'
           import json
@@ -82,8 +82,6 @@ jobs:
           PY
       - name: Build debug APK
         if: env.FIREBASE_CONFIG != ''
-        env:
-          FIREBASE_CONFIG: ${{ secrets.FIREBASE_ANDROID_GOOGLE_SERVICES_JSON }}
         run: flutter build apk --debug
       - name: Upload debug APK
         if: env.FIREBASE_CONFIG != ''
