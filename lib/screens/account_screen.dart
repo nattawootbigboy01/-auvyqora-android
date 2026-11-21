@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../app_messenger.dart';
 import '../theme/app_theme.dart';
 import 'sign_in_screen.dart';
 
@@ -62,12 +63,11 @@ class AccountScreen extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: () async {
                   await FirebaseAuth.instance.signOut();
-                  if (context.mounted) {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute<void>(builder: (_) => const SignInScreen()),
-                      (route) => false,
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    rootScaffoldMessengerKey.currentState?.showSnackBar(
+                      const SnackBar(content: Text('ออกจากระบบแล้ว')),
                     );
-                  }
+                  });
                 },
                 icon: const Icon(Icons.logout),
                 label: const Text('ออกจากระบบ'),
