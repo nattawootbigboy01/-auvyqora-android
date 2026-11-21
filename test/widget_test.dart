@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:auvyqora/data/sample_catalog.dart';
 import 'package:auvyqora/main.dart';
+import 'package:auvyqora/app_messenger.dart';
 import 'package:auvyqora/screens/drama_detail_screen.dart';
 import 'package:auvyqora/screens/player_screen.dart';
 import 'package:auvyqora/screens/sign_in_screen.dart';
