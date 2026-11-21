@@ -67,4 +67,36 @@ void main() {
     expect(find.text('อีเมล'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('auth success popup is readable and dismisses automatically', (tester) async {
+    useCompactViewport(tester);
+    await tester.pumpWidget(const AuvyqoraApp());
+
+    showAuthPopup('เข้าสู่ระบบสำเร็จ');
+    await tester.pumpAndSettle();
+
+    expect(find.text('เข้าสู่ระบบสำเร็จ'), findsOneWidget);
+    final dialog = tester.widget<Dialog>(find.byType(Dialog));
+    expect(dialog.backgroundColor, const Color(0xFFFFFDF8));
+    expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.pump(const Duration(milliseconds: 1800));
+    await tester.pumpAndSettle();
+
+    expect(find.text('เข้าสู่ระบบสำเร็จ'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('logout success popup displays its own message', (tester) async {
+    useCompactViewport(tester);
+    await tester.pumpWidget(const AuvyqoraApp());
+
+    showAuthPopup('ออกจากระบบแล้ว');
+    await tester.pumpAndSettle();
+
+    expect(find.text('ออกจากระบบแล้ว'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pump(const Duration(milliseconds: 1800));
+  });
+
 }
