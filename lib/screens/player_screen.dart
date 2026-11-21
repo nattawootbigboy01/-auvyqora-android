@@ -22,8 +22,8 @@ class PlayerScreen extends StatelessWidget {
                 color: const Color(0xFF17121A),
                 child: const Center(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(20),
-                    child: const Column(
+                    padding: EdgeInsets.all(20),
+                    child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.ondemand_video_outlined, size: 58, color: AppTheme.gold),
