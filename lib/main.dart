@@ -17,7 +17,7 @@ class AuvyqoraApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
         title: 'AUVYQORA',
         debugShowCheckedModeBanner: false,
-        scaffoldMessengerKey: rootScaffoldMessengerKey,
+        navigatorKey: rootNavigatorKey,
         theme: AppTheme.dark,
         home: const HomeScreen(),
       );
