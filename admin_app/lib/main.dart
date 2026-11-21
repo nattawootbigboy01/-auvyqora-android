@@ -195,7 +195,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                       textAlign: TextAlign.center),
                   const SizedBox(height: 6),
                   Text(
-                    'Firebase Project: ${Firebase.apps.isEmpty ? 'ยังไม่เริ่มต้น' : (Firebase.app().options.projectId ?? 'ไม่ทราบ')}',
+                    'Firebase Project: ${Firebase.apps.isEmpty ? 'ยังไม่เริ่มต้น' : Firebase.app().options.projectId}',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: .55),
