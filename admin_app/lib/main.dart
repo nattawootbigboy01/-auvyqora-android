@@ -159,7 +159,11 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
       if (mounted) {
         setState(() => _error = e.code == 'email-not-verified'
             ? 'กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ'
-            : 'อีเมลหรือรหัสผ่านไม่ถูกต้อง หรือบัญชีนี้ไม่มีสิทธิ์เข้าใช้งาน');
+            : 'เข้าสู่ระบบไม่สำเร็จ (Firebase: ${e.code})');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error = 'เกิดข้อผิดพลาดในการเชื่อมต่อ: ${e.runtimeType}');
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -189,6 +193,15 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                   const SizedBox(height: 8),
                   const Text('ระบบจัดการแพลตฟอร์มสำหรับผู้ดูแลเท่านั้น',
                       textAlign: TextAlign.center),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Firebase Project: ${Firebase.app().options.projectId}',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: .55),
+                      fontSize: 11,
+                    ),
+                  ),
                   const SizedBox(height: 28),
                   Form(
                     key: _formKey,
