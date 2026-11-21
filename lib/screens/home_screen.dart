@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'account_screen.dart';
 import '../data/sample_catalog.dart';
 import '../models/drama.dart';
 import '../theme/app_theme.dart';
 import '../widgets/drama_card.dart';
 import 'drama_detail_screen.dart';
-import 'sign_in_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
