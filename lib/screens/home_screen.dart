@@ -29,7 +29,7 @@ class HomeScreen extends StatelessWidget {
             tooltip: 'บัญชี',
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute<void>(builder: (_) => const SignInScreen()),
+              MaterialPageRoute<void>(builder: (_) => const AccountScreen()),
             ),
             icon: const Icon(Icons.person_outline),
           ),
