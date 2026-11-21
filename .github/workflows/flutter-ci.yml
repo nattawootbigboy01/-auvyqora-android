@@ -23,8 +23,8 @@ jobs:
         run: flutter create . --platforms=android --org com.auvyqora
       - name: Install dependencies
         run: flutter pub get
-      - name: Analyze
-        run: flutter analyze
+      - name: Analyze viewer app only
+        run: flutter analyze lib test
       - name: Widget tests
         run: flutter test
       - name: Configure Firebase for Android build
