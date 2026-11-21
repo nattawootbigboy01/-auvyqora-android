@@ -20,7 +20,7 @@ class PlayerScreen extends StatelessWidget {
               child: Container(
                 width: double.infinity,
                 color: const Color(0xFF17121A),
-                child: Center(
+                child: const Center(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(20),
                     child: const Column(
