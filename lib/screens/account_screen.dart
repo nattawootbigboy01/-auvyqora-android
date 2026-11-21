@@ -64,9 +64,7 @@ class AccountScreen extends StatelessWidget {
                 onPressed: () async {
                   await FirebaseAuth.instance.signOut();
                   WidgetsBinding.instance.addPostFrameCallback((_) {
-                    rootScaffoldMessengerKey.currentState?.showSnackBar(
-                      const SnackBar(content: Text('ออกจากระบบแล้ว')),
-                    );
+                    showAuthPopup('ออกจากระบบแล้ว');
                   });
                 },
                 icon: const Icon(Icons.logout),
