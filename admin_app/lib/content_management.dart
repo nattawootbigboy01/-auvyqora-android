@@ -101,6 +101,7 @@ class ManageDramasPage extends StatelessWidget {
     final title = TextEditingController(text: data?['title']?.toString() ?? '');
     final genre = TextEditingController(text: data?['genre']?.toString() ?? '');
     final synopsis = TextEditingController(text: data?['synopsis']?.toString() ?? '');
+    final posterUrl = TextEditingController(text: data?['posterUrl']?.toString() ?? '');
     var featured = data?['isFeatured'] == true;
     var status = data?['status'] == _published ? _published : _draft;
     final result = await showDialog<Map<String, dynamic>>(
@@ -111,6 +112,7 @@ class ManageDramasPage extends StatelessWidget {
           TextField(controller: title, decoration: const InputDecoration(labelText: 'ชื่อเรื่อง')),
           TextField(controller: genre, decoration: const InputDecoration(labelText: 'แนวละคร')),
           TextField(controller: synopsis, minLines: 3, maxLines: 5, decoration: const InputDecoration(labelText: 'เรื่องย่อ')),
+          TextField(controller: posterUrl, keyboardType: TextInputType.url, decoration: const InputDecoration(labelText: 'ลิงก์โปสเตอร์ (HTTPS)')),
           SwitchListTile(contentPadding: EdgeInsets.zero, value: featured, onChanged: (v) => setState(() => featured = v), title: const Text('แนะนำบนหน้าแรก')),
           DropdownButtonFormField<String>(
             initialValue: status, decoration: const InputDecoration(labelText: 'สถานะ'),
@@ -122,12 +124,15 @@ class ManageDramasPage extends StatelessWidget {
           TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('ยกเลิก')),
           FilledButton(onPressed: () {
             if (title.text.trim().isEmpty) return;
-            Navigator.pop(dialogContext, {'title': title.text.trim(), 'genre': genre.text.trim(), 'synopsis': synopsis.text.trim(), 'isFeatured': featured, 'status': status});
+            final poster = posterUrl.text.trim();
+            final posterUri = Uri.tryParse(poster);
+            if (poster.isNotEmpty && (posterUri == null || posterUri.scheme != 'https' || !posterUri.hasAuthority)) return;
+            Navigator.pop(dialogContext, {'title': title.text.trim(), 'genre': genre.text.trim(), 'synopsis': synopsis.text.trim(), 'posterUrl': poster, 'isFeatured': featured, 'status': status});
           }, child: const Text('บันทึก')),
         ],
       )),
     );
-    title.dispose(); genre.dispose(); synopsis.dispose();
+    title.dispose(); genre.dispose(); synopsis.dispose(); posterUrl.dispose();
     if (result == null) return;
     try {
       await _repo.saveDrama(id, result);
@@ -213,6 +218,7 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
     final title = TextEditingController(text: data?['title']?.toString() ?? '');
     final number = TextEditingController(text: (data?['number'] ?? 1).toString());
     final duration = TextEditingController(text: data?['durationLabel']?.toString() ?? '2 นาที');
+    final hlsUrl = TextEditingController(text: data?['hlsUrl']?.toString() ?? '');
     var status = data?['status'] == _published ? _published : _draft;
     final result = await showDialog<Map<String, dynamic>>(context: context, builder: (c) => StatefulBuilder(builder: (context, setState) => AlertDialog(
       title: Text(id == null ? 'เพิ่มตอนใหม่' : 'แก้ไขตอน'),
@@ -220,6 +226,7 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
         TextField(controller: title, decoration: const InputDecoration(labelText: 'ชื่อตอน')),
         TextField(controller: number, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'หมายเลขตอน')),
         TextField(controller: duration, decoration: const InputDecoration(labelText: 'ความยาว เช่น 2 นาที')),
+        TextField(controller: hlsUrl, keyboardType: TextInputType.url, decoration: const InputDecoration(labelText: 'ลิงก์วิดีโอ HLS (HTTPS)')),
         DropdownButtonFormField<String>(initialValue: status, decoration: const InputDecoration(labelText: 'สถานะ'),
           items: const [DropdownMenuItem(value: _draft, child: Text('ฉบับร่าง')), DropdownMenuItem(value: _published, child: Text('เผยแพร่'))],
           onChanged: (v) => setState(() => status = v ?? _draft)),
@@ -229,11 +236,15 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
         FilledButton(onPressed: () {
           final n = int.tryParse(number.text.trim());
           if (title.text.trim().isEmpty || n == null || n < 1) return;
-          Navigator.pop(c, {'title': title.text.trim(), 'number': n, 'durationLabel': duration.text.trim(), 'status': status});
+          final streamUrl = hlsUrl.text.trim();
+          final streamUri = Uri.tryParse(streamUrl);
+          if (status == _published && (streamUri == null || streamUri.scheme != 'https' || !streamUri.hasAuthority)) return;
+          if (streamUrl.isNotEmpty && (streamUri == null || streamUri.scheme != 'https' || !streamUri.hasAuthority)) return;
+          Navigator.pop(c, {'title': title.text.trim(), 'number': n, 'durationLabel': duration.text.trim(), 'hlsUrl': streamUrl, 'status': status});
         }, child: const Text('บันทึก')),
       ],
     )));
-    title.dispose(); number.dispose(); duration.dispose();
+    title.dispose(); number.dispose(); duration.dispose(); hlsUrl.dispose();
     if (result == null) return;
     try {
       await _repo.saveEpisode(dramaId, id, result);
