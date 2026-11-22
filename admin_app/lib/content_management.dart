@@ -9,8 +9,9 @@ class ContentRepository {
   final _db = FirebaseFirestore.instance;
   CollectionReference<Map<String, dynamic>> get dramas => _db.collection('dramas');
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> watchDramas() =>
-      dramas.orderBy('updatedAt', descending: true).snapshots();
+  // Avoid orderBy on an optional timestamp: legacy documents without updatedAt
+  // are excluded by Firestore when orderBy is used.
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchDramas() => dramas.snapshots();
 
   Stream<QuerySnapshot<Map<String, dynamic>>> watchEpisodes(String dramaId) =>
       dramas.doc(dramaId).collection('episodes').orderBy('number').snapshots();
@@ -58,7 +59,15 @@ class ManageDramasPage extends StatelessWidget {
       builder: (context, snapshot) {
         if (snapshot.hasError) return _error('โหลดละครไม่สำเร็จ: ${snapshot.error}');
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final docs = snapshot.data!.docs;
+        final docs = snapshot.data!.docs.toList()
+          ..sort((a, b) {
+            final aTime = a.data()['updatedAt'];
+            final bTime = b.data()['updatedAt'];
+            if (aTime is Timestamp && bTime is Timestamp) return bTime.compareTo(aTime);
+            if (aTime is Timestamp) return -1;
+            if (bTime is Timestamp) return 1;
+            return a.id.compareTo(b.id);
+          });
         if (docs.isEmpty) return _empty(Icons.movie_outlined, 'ยังไม่มีละคร', 'กดเพิ่มละครเพื่อเริ่มต้น');
         return ListView.separated(
           padding: const EdgeInsets.all(16),
