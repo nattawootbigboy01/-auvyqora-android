@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -707,26 +708,15 @@ class _ManageMembersPageState extends State<ManageMembersPage> {
     );
     if (confirmed != true) return;
     try {
-      await ref.update({
+      final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
+          .httpsCallable('setMemberStatus');
+      await callable.call(<String, dynamic>{
+        'uid': ref.id,
         'status': status,
-        'updatedAt': FieldValue.serverTimestamp(),
       });
-      try {
-        final actor = FirebaseAuth.instance.currentUser;
-        await FirebaseFirestore.instance.collection('audit_logs').add({
-          'actorUid': actor?.uid ?? '',
-          'action': status == 'suspended' ? 'suspend' : 'activate',
-          'targetType': 'member',
-          'targetId': ref.id,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-      } catch (_) {
-        // The member status change remains authoritative; audit writes are best-effort
-        // until the matching Firestore Rules revision is deployed.
-      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(status == 'suspended' ? 'ระงับบัญชีแล้ว' : 'เปิดใช้งานบัญชีแล้ว')),
+          SnackBar(content: Text(status == 'suspended' ? 'ระงับบัญชีและปิดการเข้าสู่ระบบแล้ว' : 'เปิดใช้งานบัญชีแล้ว')),
         );
       }
     } catch (error) {
