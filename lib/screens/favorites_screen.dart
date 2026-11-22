@@ -1,6 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../models/drama.dart';
+import 'drama_detail_screen.dart';
+import 'player_screen.dart';
 
 class FavoritesScreen extends StatelessWidget {
   const FavoritesScreen({super.key});
@@ -31,6 +34,22 @@ class FavoritesScreen extends StatelessWidget {
                     leading: const Icon(Icons.favorite, color: Colors.pinkAccent),
                     title: Text((data?['title'] ?? 'ละครที่ไม่พร้อมใช้งาน').toString()),
                     subtitle: Text(data == null ? 'ไม่พบข้อมูลละคร หรือถูกนำออกจากระบบ' : (data['genre'] ?? '').toString()),
+                    onTap: data == null || dramaSnapshot.connectionState != ConnectionState.done
+                        ? null
+                        : () {
+                            final drama = Drama(
+                              id: saved.id,
+                              title: (data['title'] ?? 'ละคร').toString(),
+                              synopsis: (data['synopsis'] ?? '').toString(),
+                              genre: (data['genre'] ?? '').toString(),
+                              episodes: const [],
+                              isFeatured: data['isFeatured'] == true,
+                              posterUrl: (data['posterUrl'] ?? '').toString(),
+                            );
+                            Navigator.push(context, MaterialPageRoute<void>(
+                              builder: (_) => DramaDetailScreen(drama: drama),
+                            ));
+                          },
                     trailing: IconButton(
                       tooltip: 'นำออกจากรายการโปรด',
                       icon: const Icon(Icons.delete_outline),
@@ -84,6 +103,37 @@ class WatchHistoryScreen extends StatelessWidget {
                 leading: const Icon(Icons.history),
                 title: Text((data['dramaTitle'] ?? 'ละคร').toString()),
                 subtitle: Text('${(data['episodeTitle'] ?? 'ตอน').toString()} • ${_position(data['lastPositionSeconds'])}'),
+                onTap: () async {
+                  final dramaId = (data['dramaId'] ?? '').toString();
+                  if (dramaId.isEmpty) return;
+                  try {
+                    final episode = await FirebaseFirestore.instance
+                        .collection('dramas').doc(dramaId).collection('episodes').doc(doc.id).get();
+                    final episodeData = episode.data();
+                    final url = (episodeData?['hlsUrl'] ?? '').toString();
+                    if (!episode.exists || episodeData?['status'] != 'published' || !url.startsWith('https://')) {
+                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('ตอนนี้ไม่พร้อมรับชม หรือไม่มีลิงก์วิดีโอแล้ว')),
+                      );
+                      return;
+                    }
+                    if (!context.mounted) return;
+                    await Navigator.push(context, MaterialPageRoute<void>(
+                      builder: (_) => PlayerScreen(
+                        dramaId: dramaId,
+                        episodeId: doc.id,
+                        dramaTitle: (data['dramaTitle'] ?? 'ละคร').toString(),
+                        episodeTitle: (data['episodeTitle'] ?? 'ตอน').toString(),
+                        hlsUrl: url,
+                        initialPositionSeconds: (data['lastPositionSeconds'] as num?)?.toInt() ?? 0,
+                      ),
+                    ));
+                  } catch (error) {
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('เปิดประวัติการรับชมไม่สำเร็จ: $error')),
+                    );
+                  }
+                },
                 trailing: IconButton(
                   tooltip: 'ลบประวัติรายการนี้', icon: const Icon(Icons.delete_outline),
                   onPressed: () => history.doc(doc.id).delete(),

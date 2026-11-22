@@ -8,6 +8,7 @@ class PlayerScreen extends StatefulWidget {
     super.key,
     this.dramaId = '',
     this.episodeId = '',
+    this.initialPositionSeconds = 0,
     required this.dramaTitle,
     required this.episodeTitle,
     this.hlsUrl = '',
@@ -15,6 +16,7 @@ class PlayerScreen extends StatefulWidget {
 
   final String dramaId;
   final String episodeId;
+  final int initialPositionSeconds;
   final String dramaTitle;
   final String episodeTitle;
   final String hlsUrl;
@@ -46,6 +48,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
       await controller.initialize();
       if (!mounted) return;
       await controller.setLooping(false);
+      if (widget.initialPositionSeconds > 0 && widget.initialPositionSeconds < controller.value.duration.inSeconds) {
+        await controller.seekTo(Duration(seconds: widget.initialPositionSeconds));
+      }
       await _tracker.recordView();
       setState(() {});
       await controller.play();
