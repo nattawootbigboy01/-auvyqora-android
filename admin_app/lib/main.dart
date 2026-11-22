@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -90,7 +91,7 @@ class _AdminRoleGateState extends State<AdminRoleGate> {
     if (user == null || !user.emailVerified) return false;
     final token = await user.getIdTokenResult(true);
     final claims = token.claims ?? <String, dynamic>{};
-    return claims['admin'] == true || claims['role'] == 'admin';
+    return claims['admin'] == true;
   }
 
   @override
@@ -319,7 +320,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 ? ManageDramasPage()
                 : _selected == 2
                     ? const ManageEpisodesPage()
-                    : _sectionPlaceholder(title),
+                    : _selected == 3
+                        ? const ManageMembersPage()
+                        : _sectionPlaceholder(title),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selected,
@@ -335,55 +338,71 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  Widget _overview() => ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          const Text('ศูนย์ควบคุมแพลตฟอร์ม',
-              style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 6),
-          Text('จัดการคอนเทนต์และตรวจสอบสถานะ AUVYQORA',
-              style: TextStyle(color: Colors.white.withValues(alpha: .7))),
-          const SizedBox(height: 18),
-          const _MetricCard(
-              icon: Icons.movie_outlined,
-              title: 'ละครทั้งหมด',
-              value: 'ยังไม่มีข้อมูล',
-              note: 'รอเชื่อมต่อฐานข้อมูล'),
-          const _MetricCard(
-              icon: Icons.play_circle_outline,
-              title: 'ยอดรับชม',
-              value: 'ยังไม่มีข้อมูล',
-              note: 'รอระบบ Analytics'),
-          const _MetricCard(
-              icon: Icons.people_outline,
-              title: 'สมาชิก',
-              value: 'ยังไม่มีข้อมูล',
-              note: 'รอเชื่อมต่อฐานข้อมูล'),
-          const _MetricCard(
-              icon: Icons.payments_outlined,
-              title: 'รายได้จริง',
-              value: 'ยังไม่มีข้อมูล',
-              note: 'แสดงเมื่อเชื่อมต่อเครือข่ายโฆษณา'),
-          const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _overview() => StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance.collection('dramas').snapshots(),
+        builder: (context, dramaSnapshot) {
+          return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance.collection('users').snapshots(),
+            builder: (context, userSnapshot) {
+              final dramaCount = dramaSnapshot.data?.docs.length;
+              final userCount = userSnapshot.data?.docs.length;
+              final publishedCount = dramaSnapshot.data?.docs
+                      .where((doc) => doc.data()['status'] == 'published')
+                      .length;
+              return ListView(
+                padding: const EdgeInsets.all(16),
                 children: [
-                  const Icon(Icons.info_outline, color: AdminTheme.gold),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'นี่คือหน้าจอพื้นฐานของระบบแอดมิน การเพิ่ม แก้ไข เผยแพร่ และอัปโหลดจริงจะเปิดใช้งานหลังเชื่อมต่อ Backend และกำหนดสิทธิ์ฝั่งเซิร์ฟเวอร์ครบถ้วน',
-                      style: TextStyle(color: Colors.white.withValues(alpha: .82)),
+                  const Text('ศูนย์ควบคุมแพลตฟอร์ม',
+                      style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Text('ข้อมูลจาก Cloud Firestore แบบเรียลไทม์',
+                      style: TextStyle(color: Colors.white.withValues(alpha: .7))),
+                  const SizedBox(height: 18),
+                  _MetricCard(
+                    icon: Icons.movie_outlined,
+                    title: 'ละครทั้งหมด',
+                    value: dramaSnapshot.hasError ? 'โหลดไม่สำเร็จ' : dramaCount?.toString() ?? 'กำลังโหลด',
+                    note: dramaSnapshot.hasError ? 'ตรวจสอบ Firestore Rules' : 'เผยแพร่แล้ว ${publishedCount ?? 0} เรื่อง',
+                  ),
+                  _MetricCard(
+                    icon: Icons.people_outline,
+                    title: 'สมาชิก',
+                    value: userSnapshot.hasError ? 'โหลดไม่สำเร็จ' : userCount?.toString() ?? 'กำลังโหลด',
+                    note: userSnapshot.hasError ? 'ตรวจสอบ Firestore Rules' : 'บัญชีที่มีโปรไฟล์ในระบบ',
+                  ),
+                  const _MetricCard(
+                    icon: Icons.play_circle_outline,
+                    title: 'ยอดรับชม',
+                    value: 'ยังไม่มีข้อมูล',
+                    note: 'ต้องเชื่อมระบบบันทึกการรับชมก่อน',
+                  ),
+                  const _MetricCard(
+                    icon: Icons.payments_outlined,
+                    title: 'รายได้จริง',
+                    value: 'ยังไม่มีข้อมูล',
+                    note: 'ยังไม่ได้เชื่อมระบบโฆษณาและรายได้',
+                  ),
+                  if (dramaSnapshot.hasError || userSnapshot.hasError)
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          'เกิดข้อผิดพลาดในการอ่านข้อมูล: ${dramaSnapshot.error ?? userSnapshot.error}',
+                          style: const TextStyle(color: Colors.orangeAccent),
+                        ),
+                      ),
+                    ),
+                  const Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text('ข้อมูลจำนวนละครและสมาชิกอัปเดตจาก Firestore โดยตรง ส่วนยอดรับชมและรายได้จะไม่แสดงตัวเลขสมมติจนกว่าจะมีระบบบันทึกและแหล่งข้อมูลจริง'),
                     ),
                   ),
                 ],
-              ),
-            ),
-          ),
-        ],
+              );
+            },
+          );
+        },
       );
 
   Widget _sectionPlaceholder(String title) => Center(
@@ -404,6 +423,136 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ]),
         ),
       );
+}
+
+
+class ManageMembersPage extends StatefulWidget {
+  const ManageMembersPage({super.key});
+
+  @override
+  State<ManageMembersPage> createState() => _ManageMembersPageState();
+}
+
+class _ManageMembersPageState extends State<ManageMembersPage> {
+  final _search = TextEditingController();
+  final _users = FirebaseFirestore.instance.collection('users');
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: TextField(
+              controller: _search,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search),
+                labelText: 'ค้นหาด้วยอีเมลหรือชื่อสมาชิก',
+              ),
+            ),
+          ),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: _users.orderBy('createdAt', descending: true).snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text('โหลดสมาชิกไม่สำเร็จ: ${snapshot.error}', textAlign: TextAlign.center),
+                    ),
+                  );
+                }
+                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                final query = _search.text.trim().toLowerCase();
+                final docs = snapshot.data!.docs.where((doc) {
+                  final data = doc.data();
+                  final email = (data['email'] ?? '').toString().toLowerCase();
+                  final name = (data['displayName'] ?? '').toString().toLowerCase();
+                  return query.isEmpty || email.contains(query) || name.contains(query);
+                }).toList();
+                if (docs.isEmpty) {
+                  return const Center(child: Text('ไม่พบสมาชิก หรือยังไม่มีโปรไฟล์สมาชิก'));
+                }
+                return ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                  itemCount: docs.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final doc = docs[index];
+                    final data = doc.data();
+                    final suspended = data['status'] == 'suspended';
+                    final email = (data['email'] ?? 'ไม่พบอีเมล').toString();
+                    final name = (data['displayName'] ?? 'สมาชิก AUVYQORA').toString();
+                    return Card(
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: suspended ? Colors.red.shade900 : AdminTheme.burgundy,
+                          child: Icon(suspended ? Icons.block : Icons.person_outline, color: AdminTheme.gold),
+                        ),
+                        title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: Text('$email\n${suspended ? 'ระงับการใช้งาน' : 'ใช้งานปกติ'}',
+                            maxLines: 2, overflow: TextOverflow.ellipsis),
+                        isThreeLine: true,
+                        trailing: PopupMenuButton<String>(
+                          onSelected: (action) => _setStatus(doc.reference, action),
+                          itemBuilder: (_) => [
+                            if (!suspended)
+                              const PopupMenuItem(value: 'suspended', child: Text('ระงับการใช้งาน')),
+                            if (suspended)
+                              const PopupMenuItem(value: 'active', child: Text('เปิดใช้งานอีกครั้ง')),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      );
+
+  Future<void> _setStatus(DocumentReference<Map<String, dynamic>> ref, String status) async {
+    final label = status == 'suspended' ? 'ระงับ' : 'เปิดใช้งาน';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('$labelบัญชีสมาชิก?'),
+        content: Text(status == 'suspended'
+            ? 'สมาชิกจะไม่สามารถอ่านเนื้อหาที่ต้องเข้าสู่ระบบได้'
+            : 'สมาชิกจะกลับมาใช้งานเนื้อหาที่ต้องเข้าสู่ระบบได้'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('ยกเลิก')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text('$label')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await ref.update({
+        'status': status,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(status == 'suspended' ? 'ระงับบัญชีแล้ว' : 'เปิดใช้งานบัญชีแล้ว')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('เปลี่ยนสถานะไม่สำเร็จ: $error')),
+        );
+      }
+    }
+  }
 }
 
 class _MetricCard extends StatelessWidget {
