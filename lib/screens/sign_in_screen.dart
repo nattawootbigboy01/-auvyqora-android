@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -29,6 +30,25 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   FirebaseAuth get _auth => FirebaseAuth.instance;
+
+  Future<void> _syncUserProfile(User user) async {
+    final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    final existing = await ref.get();
+    final profile = <String, dynamic>{
+      'email': user.email,
+      'displayName': user.displayName,
+      'lastSeenAt': FieldValue.serverTimestamp(),
+    };
+    if (existing.exists) {
+      await ref.set(profile, SetOptions(merge: true));
+    } else {
+      await ref.set({
+        ...profile,
+        'status': 'active',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+  }
 
   String _authError(FirebaseAuthException error) {
     switch (error.code) {
@@ -68,6 +88,7 @@ class _SignInScreenState extends State<SignInScreen> {
           email: email,
           password: password,
         );
+        if (credential.user != null) await _syncUserProfile(credential.user!);
         await credential.user?.sendEmailVerification();
         if (mounted) {
           setState(() {
@@ -90,6 +111,7 @@ class _SignInScreenState extends State<SignInScreen> {
             });
           }
         } else if (mounted) {
+          if (user != null) await _syncUserProfile(user);
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute<void>(builder: (_) => const HomeScreen()),
             (route) => false,
