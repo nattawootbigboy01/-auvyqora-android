@@ -37,6 +37,9 @@ jobs:
 
           config_text = os.environ["FIREBASE_CONFIG"]
           config = json.loads(config_text)
+          project_id = config.get("project_info", {}).get("project_id")
+          if project_id != "auvyqora-c2d3a":
+              raise SystemExit("Firebase project mismatch. Expected auvyqora-c2d3a; found " + str(project_id))
           app_id = "com.auvyqora.auvyqora"
           clients = config.get("client", [])
           package_names = [
@@ -127,6 +130,9 @@ jobs:
 
           config_text = os.environ["ADMIN_FIREBASE_CONFIG"]
           config = json.loads(config_text)
+          project_id = config.get("project_info", {}).get("project_id")
+          if project_id != "auvyqora-c2d3a":
+              raise SystemExit("Admin Firebase project mismatch. Expected auvyqora-c2d3a; found " + str(project_id))
           app_id = "com.auvyqora.admin"
           package_names = [
               client.get("client_info", {}).get("android_client_info", {}).get("package_name")
