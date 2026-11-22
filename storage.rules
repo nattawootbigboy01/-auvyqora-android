@@ -1,0 +1,24 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Only authenticated platform admins may upload source videos.
+    match /uploads/{uid}/{dramaId}/{episodeId}/{fileName} {
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.auth.token.admin == true
+        && request.resource.size < 1073741824
+        && request.resource.contentType.matches('video/(mp4|quicktime|x-m4v|x-matroska|webm)');
+      allow read, update, delete: if false;
+    }
+
+    // Published HLS assets are public media. Only the trusted backend writes them.
+    match /hls/{dramaId}/{episodeId}/{fileName} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
