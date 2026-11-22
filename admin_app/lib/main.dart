@@ -353,10 +353,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
         stream: FirebaseFirestore.instance.collection('audit_logs')
             .orderBy('createdAt', descending: true).limit(200).snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.hasError) return Center(child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text('โหลดประวัติแอดมินไม่สำเร็จ: ${snapshot.error}', textAlign: TextAlign.center),
-          ));
+          if (snapshot.hasError) {
+            return Center(child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text('โหลดประวัติแอดมินไม่สำเร็จ: ${snapshot.error}', textAlign: TextAlign.center),
+            ));
+          }
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
