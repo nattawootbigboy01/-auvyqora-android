@@ -33,6 +33,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Future<void> _initializePlayer() async {
     final controller = VideoPlayerController.networkUrl(Uri.parse(widget.hlsUrl));
     _controller = controller;
+    controller.addListener(_onControllerChanged);
     try {
       await controller.initialize();
       if (!mounted) return;
@@ -40,13 +41,32 @@ class _PlayerScreenState extends State<PlayerScreen> {
       setState(() {});
       await controller.play();
     } catch (_) {
-      if (mounted) setState(() => _error = 'เปิดวิดีโอไม่ได้ กรุณาตรวจสอบลิงก์สตรีม');
+      if (mounted) {
+        setState(() => _error = 'เปิดวิดีโอไม่ได้ กรุณาตรวจสอบลิงก์สตรีม');
+      }
     }
+  }
+
+  void _onControllerChanged() {
+    if (!mounted) return;
+    final controller = _controller;
+    if (controller == null) return;
+    if (controller.value.hasError) {
+      const message = 'เกิดข้อผิดพลาดในการเล่นวิดีโอ กรุณาตรวจสอบลิงก์สตรีม';
+      if (_error != message) {
+        setState(() => _error = message);
+        return;
+      }
+    }
+    // Rebuild controls as playback position and playing state change.
+    setState(() {});
   }
 
   @override
   void dispose() {
-    _controller?.dispose();
+    final controller = _controller;
+    controller?.removeListener(_onControllerChanged);
+    controller?.dispose();
     super.dispose();
   }
 
@@ -84,7 +104,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                             ),
             ),
           ),
-          if (controller != null && controller.value.isInitialized)
+          if (controller != null && controller.value.isInitialized && _error == null)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
               child: Column(
@@ -101,9 +121,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
                           style: const TextStyle(color: Colors.white70, fontSize: 12)),
                       const Spacer(),
                       IconButton(
-                        onPressed: () => setState(() {
-                          controller.value.isPlaying ? controller.pause() : controller.play();
-                        }),
+                        onPressed: () {
+                          if (controller.value.isPlaying) {
+                            controller.pause();
+                          } else {
+                            controller.play();
+                          }
+                        },
                         icon: Icon(controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
                             color: AppTheme.gold, size: 30),
                       ),

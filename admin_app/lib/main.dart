@@ -85,6 +85,14 @@ class _AdminRoleGateState extends State<AdminRoleGate> {
     _authorization = _checkAdmin();
   }
 
+  @override
+  void didUpdateWidget(covariant AdminRoleGate oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.user.uid != widget.user.uid) {
+      _authorization = _checkAdmin();
+    }
+  }
+
   Future<bool> _checkAdmin() async {
     await widget.user.reload();
     final user = FirebaseAuth.instance.currentUser;
@@ -471,7 +479,19 @@ class _ManageMembersPageState extends State<ManageMembersPage> {
                 }
                 if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                 final query = _search.text.trim().toLowerCase();
-                final docs = snapshot.data!.docs.where((doc) {
+                // Sort locally so legacy profiles without createdAt are not omitted.
+                final allDocs = snapshot.data!.docs.toList()
+                  ..sort((a, b) {
+                    final aCreated = a.data()['createdAt'];
+                    final bCreated = b.data()['createdAt'];
+                    if (aCreated is Timestamp && bCreated is Timestamp) {
+                      return bCreated.compareTo(aCreated);
+                    }
+                    if (aCreated is Timestamp) return -1;
+                    if (bCreated is Timestamp) return 1;
+                    return a.id.compareTo(b.id);
+                  });
+                final docs = allDocs.where((doc) {
                   final data = doc.data();
                   final email = (data['email'] ?? '').toString().toLowerCase();
                   final name = (data['displayName'] ?? '').toString().toLowerCase();

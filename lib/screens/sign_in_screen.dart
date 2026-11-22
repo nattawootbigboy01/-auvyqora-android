@@ -34,6 +34,13 @@ class _SignInScreenState extends State<SignInScreen> {
   Future<void> _syncUserProfile(User user) async {
     final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
     final existing = await ref.get();
+    if (existing.exists && existing.data()?['status'] == 'suspended') {
+      await _auth.signOut();
+      throw FirebaseAuthException(
+        code: 'account-suspended',
+        message: 'บัญชีนี้ถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ',
+      );
+    }
     final profile = <String, dynamic>{
       'email': user.email,
       'displayName': user.displayName,
@@ -68,6 +75,8 @@ class _SignInScreenState extends State<SignInScreen> {
         return 'เชื่อมต่ออินเทอร์เน็ตไม่ได้ กรุณาลองใหม่';
       case 'operation-not-allowed':
         return 'Firebase ยังไม่ได้เปิดใช้ Email/Password';
+      case 'account-suspended':
+        return 'บัญชีนี้ถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ';
       default:
         return 'ดำเนินการไม่สำเร็จ กรุณาลองใหม่อีกครั้ง';
     }
