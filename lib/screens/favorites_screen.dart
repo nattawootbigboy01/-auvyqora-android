@@ -114,9 +114,11 @@ class WatchHistoryScreen extends StatelessWidget {
                     final episodeData = episode.data();
                     final url = (episodeData?['hlsUrl'] ?? '').toString();
                     if (!episode.exists || episodeData?['status'] != 'published' || !url.startsWith('https://')) {
-                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('ตอนนี้ไม่พร้อมรับชม หรือไม่มีลิงก์วิดีโอแล้ว')),
-                      );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('ตอนนี้ไม่พร้อมรับชม หรือไม่มีลิงก์วิดีโอแล้ว')),
+                        );
+                      }
                       return;
                     }
                     if (!context.mounted) {
@@ -133,9 +135,11 @@ class WatchHistoryScreen extends StatelessWidget {
                       ),
                     ));
                   } catch (error) {
-                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('เปิดประวัติการรับชมไม่สำเร็จ: $error')),
-                    );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('เปิดประวัติการรับชมไม่สำเร็จ: $error')),
+                      );
+                    }
                   }
                 },
                 trailing: IconButton(
