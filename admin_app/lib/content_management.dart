@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -207,7 +211,7 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Icon(Icons.info_outline, color: _gold),
               SizedBox(width: 10),
-              Expanded(child: Text('ขณะนี้ระบบยังไม่รองรับการอัปโหลดไฟล์วิดีโอหรือแปลงเป็น HLS อัตโนมัติ ให้ใช้ลิงก์ HLS แบบ HTTPS จากผู้ให้บริการวิดีโอภายนอกชั่วคราว การเชื่อมต่ออัปโหลดจริงจะทำหลังติดตั้งเซิร์ฟเวอร์')),
+              Expanded(child: Text('เลือกอัปโหลดไฟล์วิดีโอจากเครื่องได้ ระบบจะส่งไฟล์ไปจัดเก็บและให้ Cloud Functions แปลงเป็น HLS อัตโนมัติ หรือกรอกลิงก์ HLS ภายนอกแบบ HTTPS ได้')),
             ]),
           ),
         ),
@@ -236,11 +240,17 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
                     onSelected: (v) async {
                       if (v == 'edit') {
                         await _episodeForm(context, selectedId, doc.id, data);
+                      } else if (v == 'upload') {
+                        await _uploadEpisodeVideo(context, selectedId, doc.id);
                       } else if (v == 'delete') {
                         await _deleteEpisode(context, selectedId, doc.id);
                       }
                     },
-                    itemBuilder: (_) => const [PopupMenuItem(value: 'edit', child: Text('แก้ไข')), PopupMenuItem(value: 'delete', child: Text('ลบ'))],
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'edit', child: Text('แก้ไขข้อมูลตอน')),
+                      PopupMenuItem(value: 'upload', child: Text('อัปโหลดวิดีโอ')),
+                      PopupMenuItem(value: 'delete', child: Text('ลบ')),
+                    ],
                   ),
                 ));
               },
@@ -254,6 +264,106 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
       ]);
     },
   );
+
+
+  Future<void> _uploadEpisodeVideo(BuildContext context, String dramaId, String episodeId) async {
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.video,
+      allowMultiple: false,
+      withData: false,
+    );
+    if (picked == null || picked.files.isEmpty) return;
+    final file = picked.files.single;
+    final path = file.path;
+    final extension = (file.extension ?? '').toLowerCase();
+    const allowed = {'mp4', 'mov', 'm4v', 'mkv', 'webm'};
+    if (path == null || !allowed.contains(extension)) {
+      _showError(context, 'รองรับไฟล์ MP4, MOV, M4V, MKV และ WEBM เท่านั้น');
+      return;
+    }
+    if (file.size > 1024 * 1024 * 1024) {
+      _showError(context, 'ไฟล์มีขนาดเกิน 1 GB');
+      return;
+    }
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _showError(context, 'กรุณาเข้าสู่ระบบแอดมินใหม่');
+      return;
+    }
+    final mime = switch (extension) {
+      'mov' => 'video/quicktime',
+      'mkv' => 'video/x-matroska',
+      'webm' => 'video/webm',
+      'm4v' => 'video/x-m4v',
+      _ => 'video/mp4',
+    };
+    final safeName = file.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+    final objectPath = 'uploads/${user.uid}/$dramaId/$episodeId/${DateTime.now().millisecondsSinceEpoch}_$safeName';
+    try {
+      await _repo.dramas.doc(dramaId).collection('episodes').doc(episodeId).update({
+        'uploadStatus': 'uploading',
+        'uploadError': FieldValue.delete(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      final task = FirebaseStorage.instance.ref(objectPath).putFile(
+        File(path),
+        SettableMetadata(
+          contentType: mime,
+          customMetadata: {
+            'uid': user.uid,
+            'dramaId': dramaId,
+            'episodeId': episodeId,
+          },
+        ),
+      );
+      final dialogFuture = showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => StreamBuilder<TaskSnapshot>(
+          stream: task.snapshotEvents,
+          builder: (context, snapshot) {
+            final current = snapshot.data;
+            final total = current?.totalBytes ?? 0;
+            final sent = current?.bytesTransferred ?? 0;
+            final progress = total > 0 ? sent / total : null;
+            return AlertDialog(
+              title: const Text('กำลังอัปโหลดวิดีโอ'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  LinearProgressIndicator(value: progress),
+                  const SizedBox(height: 12),
+                  Text(total > 0
+                      ? '${(sent / 1024 / 1024).toStringAsFixed(1)} / ${(total / 1024 / 1024).toStringAsFixed(1)} MB'
+                      : 'กำลังเตรียมไฟล์'),
+                ],
+              ),
+            );
+          },
+        ),
+      );
+      await task;
+      if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
+      await dialogFuture;
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('อัปโหลดสำเร็จ กำลังแปลงวิดีโอเป็น HLS')),
+        );
+      }
+    } catch (error) {
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).maybePop();
+      }
+      try {
+        await _repo.dramas.doc(dramaId).collection('episodes').doc(episodeId).update({
+          'uploadStatus': 'failed',
+          'uploadError': error.toString(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } catch (_) {}
+      if (context.mounted) _showError(context, error);
+    }
+  }
 
   Future<void> _episodeForm(BuildContext context, String dramaId, String? id, Map<String, dynamic>? data) async {
     final title = TextEditingController(text: data?['title']?.toString() ?? '');
