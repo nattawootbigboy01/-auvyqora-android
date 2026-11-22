@@ -142,6 +142,9 @@ class _FavoriteControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (Firebase.apps.isEmpty) {
+      return const Text('เข้าสู่ระบบและยืนยันอีเมลเพื่อบันทึกรายการโปรด');
+    }
     final user = FirebaseAuth.instance.currentUser;
     if (user == null || !user.emailVerified || drama.id.startsWith('drama-')) {
       return const Text('เข้าสู่ระบบและยืนยันอีเมลเพื่อบันทึกรายการโปรด');
