@@ -179,3 +179,17 @@ jobs:
       - name: Explain skipped admin APK build
         if: env.ADMIN_FIREBASE_CONFIG == ''
         run: echo "Admin APK build skipped; add FIREBASE_ADMIN_GOOGLE_SERVICES_JSON after registering the admin Android app in Firebase."
+
+  functions_validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install backend dependencies
+        working-directory: functions
+        run: npm install
+      - name: Check backend syntax
+        working-directory: functions
+        run: npm run check
