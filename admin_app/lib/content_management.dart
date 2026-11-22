@@ -313,7 +313,7 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
     final safeName = file.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
     final objectPath = 'uploads/${user.uid}/$dramaId/$episodeId/${DateTime.now().millisecondsSinceEpoch}_$safeName';
     var dialogOpen = false;
-    Future<void>? dialogFuture;
+    var dialogFuture = Future<void>.value();
     try {
       await _repo.dramas.doc(dramaId).collection('episodes').doc(episodeId).update({
         'uploadStatus': 'uploading',
@@ -375,7 +375,7 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
         Navigator.of(context, rootNavigator: true).maybePop();
         dialogOpen = false;
       }
-      if (dialogFuture != null) await dialogFuture;
+      await dialogFuture;
       try {
         await _repo.dramas.doc(dramaId).collection('episodes').doc(episodeId).update({
           'uploadStatus': 'failed',
