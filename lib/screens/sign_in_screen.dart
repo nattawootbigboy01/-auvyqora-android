@@ -112,6 +112,7 @@ class _SignInScreenState extends State<SignInScreen> {
           }
         } else if (mounted) {
           if (user != null) await _syncUserProfile(user);
+          if (!mounted) return;
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute<void>(builder: (_) => const HomeScreen()),
             (route) => false,
