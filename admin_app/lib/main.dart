@@ -357,9 +357,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
             padding: const EdgeInsets.all(24),
             child: Text('โหลดประวัติแอดมินไม่สำเร็จ: ${snapshot.error}', textAlign: TextAlign.center),
           ));
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
           final docs = snapshot.data!.docs;
-          if (docs.isEmpty) return const Center(child: Text('ยังไม่มีประวัติการดำเนินการ'));
+          if (docs.isEmpty) {
+            return const Center(child: Text('ยังไม่มีประวัติการดำเนินการ'));
+          }
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: docs.length,
