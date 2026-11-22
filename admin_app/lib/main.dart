@@ -330,7 +330,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     ? const ManageEpisodesPage()
                     : _selected == 3
                         ? const ManageMembersPage()
-                        : _sectionPlaceholder(title),
+                        : _reports(),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selected,
@@ -413,23 +413,62 @@ class _AdminDashboardState extends State<AdminDashboard> {
         },
       );
 
-  Widget _sectionPlaceholder(String title) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.construction_outlined,
-                size: 52, color: AdminTheme.gold),
-            const SizedBox(height: 12),
-            Text(title,
-                style: const TextStyle(
-                    fontSize: 22, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            const Text(
-              'เตรียมหน้าจอไว้แล้ว รอเชื่อมต่อ Backend และระบบสิทธิ์ก่อนเปิดใช้ข้อมูลจริง',
-              textAlign: TextAlign.center,
-            ),
-          ]),
-        ),
+  Widget _reports() => StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance.collection('dramas').snapshots(),
+        builder: (context, dramaSnapshot) {
+          return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance.collection('users').snapshots(),
+            builder: (context, userSnapshot) {
+              final hasError = dramaSnapshot.hasError || userSnapshot.hasError;
+              final connected = dramaSnapshot.hasData && userSnapshot.hasData && !hasError;
+              final dramaCount = dramaSnapshot.data?.docs.length;
+              final memberCount = userSnapshot.data?.docs.length;
+              return ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  const Text('รายงานและสถานะระบบ',
+                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 14),
+                  Card(
+                    child: ListTile(
+                      leading: Icon(
+                        hasError ? Icons.cloud_off : connected ? Icons.cloud_done : Icons.cloud_sync,
+                        color: hasError ? Colors.orangeAccent : AdminTheme.gold,
+                      ),
+                      title: Text(hasError
+                          ? 'เชื่อมต่อฐานข้อมูลไม่สำเร็จ'
+                          : connected ? 'เชื่อมต่อ Cloud Firestore แล้ว' : 'กำลังตรวจสอบการเชื่อมต่อ'),
+                      subtitle: Text(hasError
+                          ? 'ข้อผิดพลาด: ${dramaSnapshot.error ?? userSnapshot.error}'
+                          : 'ตรวจสอบข้อมูลละครและสมาชิกจากฐานข้อมูลจริง'),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _MetricCard(
+                    icon: Icons.movie_outlined,
+                    title: 'ละครในระบบ',
+                    value: dramaSnapshot.hasError ? 'อ่านข้อมูลไม่ได้' : dramaCount?.toString() ?? 'กำลังโหลด',
+                    note: 'จำนวนเอกสารใน dramas',
+                  ),
+                  _MetricCard(
+                    icon: Icons.people_outline,
+                    title: 'โปรไฟล์สมาชิก',
+                    value: userSnapshot.hasError ? 'อ่านข้อมูลไม่ได้' : memberCount?.toString() ?? 'กำลังโหลด',
+                    note: 'จำนวนเอกสารใน users',
+                  ),
+                  const Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text(
+                        'รายงานยอดรับชมและรายได้ยังไม่เปิดใช้ เพราะระบบยังไม่มีการบันทึกเหตุการณ์รับชมและรายการธุรกรรมจริง หน้านี้จะไม่สร้างตัวเลขจำลอง',
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+        },
       );
 }
 
@@ -467,7 +506,8 @@ class _ManageMembersPageState extends State<ManageMembersPage> {
           ),
           Expanded(
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: _users.orderBy('createdAt', descending: true).snapshots(),
+              // Sort locally so legacy profiles without createdAt remain visible.
+              stream: _users.snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return Center(
