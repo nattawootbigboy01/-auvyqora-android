@@ -97,7 +97,9 @@ class _SignInScreenState extends State<SignInScreen> {
           email: email,
           password: password,
         );
-        if (credential.user != null) await _syncUserProfile(credential.user!);
+        // Create the Firestore member profile only after email verification,
+        // when the user signs in successfully. Registration should not fail
+        // because a profile write is unavailable before verification.
         await credential.user?.sendEmailVerification();
         if (mounted) {
           setState(() {
