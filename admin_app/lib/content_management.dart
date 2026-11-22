@@ -179,6 +179,17 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
       if (dramas.isEmpty) return _empty(Icons.video_library, 'ยังไม่มีละคร', 'เพิ่มละครก่อนจัดการตอน');
       final selectedId = dramas.any((d) => d.id == _selectedId) ? _selectedId! : dramas.first.id;
       return Column(children: [
+        Card(
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: const Padding(
+            padding: EdgeInsets.all(12),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Icon(Icons.info_outline, color: _gold),
+              SizedBox(width: 10),
+              Expanded(child: Text('ขณะนี้ระบบยังไม่รองรับการอัปโหลดไฟล์วิดีโอหรือแปลงเป็น HLS อัตโนมัติ ให้ใช้ลิงก์ HLS แบบ HTTPS จากผู้ให้บริการวิดีโอภายนอกชั่วคราว การเชื่อมต่ออัปโหลดจริงจะทำหลังติดตั้งเซิร์ฟเวอร์')),
+            ]),
+          ),
+        ),
         Padding(padding: const EdgeInsets.all(16), child: DropdownButtonFormField<String>(
           initialValue: selectedId, decoration: const InputDecoration(labelText: 'เลือกละคร'),
           items: [for (final d in dramas) DropdownMenuItem(value: d.id, child: Text((d.data()['title'] ?? '').toString()))],

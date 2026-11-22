@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import '../app_messenger.dart';
 import '../theme/app_theme.dart';
 import 'sign_in_screen.dart';
-import 'favorites_screen.dart';
 
 class AccountScreen extends StatelessWidget {
   const AccountScreen({super.key});
@@ -60,9 +59,6 @@ class AccountScreen extends StatelessWidget {
                   subtitle: Text(user.emailVerified ? 'ยืนยันแล้ว' : 'ยังไม่ได้ยืนยัน'),
                 ),
               ),
-              const SizedBox(height: 20),
-              Card(child: ListTile(leading: const Icon(Icons.favorite_outline, color: AppTheme.gold), title: const Text('รายการโปรด'), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const FavoritesScreen())))),
-              Card(child: ListTile(leading: const Icon(Icons.history, color: AppTheme.gold), title: const Text('ประวัติการรับชม'), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const WatchHistoryScreen())))),
               const SizedBox(height: 20),
               OutlinedButton.icon(
                 onPressed: () async {

@@ -5,7 +5,6 @@ import '../models/drama.dart';
 import '../models/episode.dart';
 import '../theme/app_theme.dart';
 import 'player_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class DramaDetailScreen extends StatelessWidget {
   const DramaDetailScreen({super.key, required this.drama});
@@ -77,8 +76,6 @@ class DramaDetailScreen extends StatelessWidget {
                 style: const TextStyle(color: AppTheme.gold)),
             const SizedBox(height: 12),
             Text(drama.synopsis, style: const TextStyle(height: 1.5, color: Colors.white70)),
-            const SizedBox(height: 12),
-            _FavoriteControl(drama: drama),
             const SizedBox(height: 24),
             StreamBuilder<List<Episode>>(
               stream: _watchEpisodes(),
@@ -116,8 +113,6 @@ class DramaDetailScreen extends StatelessWidget {
                             context,
                             MaterialPageRoute<void>(
                               builder: (_) => PlayerScreen(
-                                dramaId: drama.id,
-                                episodeId: episode.id,
                                 dramaTitle: drama.title,
                                 episodeTitle: episode.title,
                                 hlsUrl: episode.hlsUrl,
@@ -134,41 +129,4 @@ class DramaDetailScreen extends StatelessWidget {
           ],
         ),
       );
-}
-
-class _FavoriteControl extends StatelessWidget {
-  const _FavoriteControl({required this.drama});
-  final Drama drama;
-
-  @override
-  Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null || !user.emailVerified || drama.id.startsWith('drama-')) {
-      return const Text('เข้าสู่ระบบและยืนยันอีเมลเพื่อบันทึกรายการโปรด');
-    }
-    final ref = FirebaseFirestore.instance.collection('users').doc(user.uid).collection('favorites').doc(drama.id);
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: ref.snapshots(),
-      builder: (context, snapshot) {
-        final saved = snapshot.data?.exists == true;
-        return OutlinedButton.icon(
-          onPressed: () async {
-            try {
-              if (saved) {
-                await ref.delete();
-              } else {
-                await ref.set({'dramaId': drama.id, 'createdAt': FieldValue.serverTimestamp()});
-              }
-            } catch (error) {
-              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('บันทึกรายการโปรดไม่สำเร็จ: $error')),
-              );
-            }
-          },
-          icon: Icon(saved ? Icons.favorite : Icons.favorite_border),
-          label: Text(saved ? 'นำออกจากรายการโปรด' : 'เพิ่มในรายการโปรด'),
-        );
-      },
-    );
-  }
 }

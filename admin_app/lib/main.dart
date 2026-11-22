@@ -378,11 +378,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     value: userSnapshot.hasError ? 'โหลดไม่สำเร็จ' : userCount?.toString() ?? 'กำลังโหลด',
                     note: userSnapshot.hasError ? 'ตรวจสอบ Firestore Rules' : 'บัญชีที่มีโปรไฟล์ในระบบ',
                   ),
-                  const _MetricCard(
-                    icon: Icons.play_circle_outline,
-                    title: 'ยอดรับชม',
-                    value: 'ยังไม่มีข้อมูล',
-                    note: 'ต้องเชื่อมระบบบันทึกการรับชมก่อน',
+                  StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    stream: FirebaseFirestore.instance.collection('view_events').limit(500).snapshots(),
+                    builder: (context, viewSnapshot) => _MetricCard(
+                      icon: Icons.play_circle_outline,
+                      title: 'ยอดเปิดรับชม',
+                      value: viewSnapshot.hasError ? 'อ่านข้อมูลไม่ได้' : viewSnapshot.hasData ? viewSnapshot.data!.docs.length.toString() : 'กำลังโหลด',
+                      note: 'เหตุการณ์รับชมสูงสุด 500 รายการล่าสุด',
+                    ),
                   ),
                   const _MetricCard(
                     icon: Icons.payments_outlined,
