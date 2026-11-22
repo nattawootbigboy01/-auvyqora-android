@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 const _gold = Color(0xFFD6B36A);
@@ -16,11 +17,23 @@ class ContentRepository {
   Stream<QuerySnapshot<Map<String, dynamic>>> watchEpisodes(String dramaId) =>
       dramas.doc(dramaId).collection('episodes').orderBy('number').snapshots();
 
+  Future<void> _audit(String action, String targetType, String targetId) async {
+    final user = FirebaseAuth.instance.currentUser;
+    await _db.collection('audit_logs').add({
+      'actorUid': user?.uid ?? '',
+      'action': action,
+      'targetType': targetType,
+      'targetId': targetId,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   Future<void> saveDrama(String? id, Map<String, dynamic> data) async {
     final ref = id == null ? dramas.doc() : dramas.doc(id);
     final values = <String, dynamic>{...data, 'updatedAt': FieldValue.serverTimestamp()};
     if (id == null) values['createdAt'] = FieldValue.serverTimestamp();
     await ref.set(values, SetOptions(merge: true));
+    await _audit(id == null ? 'create' : 'update', 'drama', ref.id);
   }
 
   Future<void> deleteDrama(String id) async {
@@ -34,6 +47,7 @@ class ContentRepository {
       await batch.commit();
     }
     await ref.delete();
+    await _audit('delete', 'drama', id);
   }
 
   Future<void> saveEpisode(String dramaId, String? id, Map<String, dynamic> data) async {
@@ -42,10 +56,13 @@ class ContentRepository {
     final values = <String, dynamic>{...data, 'updatedAt': FieldValue.serverTimestamp()};
     if (id == null) values['createdAt'] = FieldValue.serverTimestamp();
     await ref.set(values, SetOptions(merge: true));
+    await _audit(id == null ? 'create' : 'update', 'episode', ref.id);
   }
 
-  Future<void> deleteEpisode(String dramaId, String id) =>
-      dramas.doc(dramaId).collection('episodes').doc(id).delete();
+  Future<void> deleteEpisode(String dramaId, String id) async {
+    await dramas.doc(dramaId).collection('episodes').doc(id).delete();
+    await _audit('delete', 'episode', id);
+  }
 }
 
 class ManageDramasPage extends StatelessWidget {

@@ -304,6 +304,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     ('จัดการตอน', Icons.video_library_outlined),
     ('สมาชิก', Icons.people_outline),
     ('รายงาน', Icons.analytics_outlined),
+    ('ประวัติแอดมิน', Icons.history_edu_outlined),
   ];
 
   @override
@@ -330,7 +331,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     ? const ManageEpisodesPage()
                     : _selected == 3
                         ? const ManageMembersPage()
-                        : _reports(),
+                        : _selected == 4
+                            ? _reports()
+                            : _auditLogs(),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selected,
@@ -345,6 +348,36 @@ class _AdminDashboardState extends State<AdminDashboard> {
       ),
     );
   }
+
+  Widget _auditLogs() => StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance.collection('audit_logs')
+            .orderBy('createdAt', descending: true).limit(200).snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) return Center(child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text('โหลดประวัติแอดมินไม่สำเร็จ: ${snapshot.error}', textAlign: TextAlign.center),
+          ));
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          final docs = snapshot.data!.docs;
+          if (docs.isEmpty) return const Center(child: Text('ยังไม่มีประวัติการดำเนินการ'));
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: docs.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 6),
+            itemBuilder: (context, index) {
+              final data = docs[index].data();
+              final stamp = data['createdAt'];
+              final time = stamp is Timestamp ? stamp.toDate().toLocal().toString() : 'ไม่ทราบเวลา';
+              return Card(child: ListTile(
+                leading: const Icon(Icons.admin_panel_settings_outlined, color: AdminTheme.gold),
+                title: Text('${data['action'] ?? 'action'} • ${data['targetType'] ?? 'item'}'),
+                subtitle: Text('เป้าหมาย: ${data['targetId'] ?? '-'}\nผู้ดำเนินการ: ${data['actorUid'] ?? '-'}\n$time'),
+                isThreeLine: true,
+              ));
+            },
+          );
+        },
+      );
 
   Widget _overview() => StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance.collection('dramas').snapshots(),
@@ -435,6 +468,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     if (id.isNotEmpty) byDrama[id] = (byDrama[id] ?? 0) + 1;
                   }
                   final sorted = byDrama.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+                  final uniqueViewers = views.map((event) => (event.data()['uid'] ?? '').toString())
+                      .where((uid) => uid.isNotEmpty).toSet().length;
+                  final dailyViews = <String, int>{};
+                  final today = DateTime.now();
+                  for (final event in views) {
+                    final stamp = event.data()['createdAt'];
+                    if (stamp is Timestamp) {
+                      final date = stamp.toDate();
+                      final age = today.difference(DateTime(date.year, date.month, date.day)).inDays;
+                      if (age >= 0 && age < 7) {
+                        final key = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+                        dailyViews[key] = (dailyViews[key] ?? 0) + 1;
+                      }
+                    }
+                  }
+                  final dailySorted = dailyViews.entries.toList()..sort((a, b) => b.key.compareTo(a.key));
                   final titles = {for (final doc in dramaDocs) doc.id: (doc.data()['title'] ?? doc.id).toString()};
                   return ListView(
                     padding: const EdgeInsets.all(16),
@@ -464,12 +513,34 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         value: userSnapshot.hasError ? 'อ่านข้อมูลไม่ได้' : memberCount?.toString() ?? 'กำลังโหลด',
                         note: 'จำนวนเอกสารใน users',
                       ),
+                      _MetricCard(
+                        icon: Icons.people_alt_outlined,
+                        title: 'ผู้ชมไม่ซ้ำในข้อมูลที่โหลด',
+                        value: viewSnapshot.hasError ? 'อ่านข้อมูลไม่ได้' : viewSnapshot.hasData ? uniqueViewers.toString() : 'กำลังโหลด',
+                        note: 'นับ UID ไม่ซ้ำจาก 500 เหตุการณ์ล่าสุด ไม่ใช่ยอดสะสมทั้งหมด',
+                      ),
                       const _MetricCard(
                         icon: Icons.payments_outlined,
                         title: 'รายได้จริง',
                         value: 'ยังไม่มีข้อมูล',
                         note: 'ยังไม่มีระบบธุรกรรมหรือการชำระเงิน',
                       ),
+                      const SizedBox(height: 8),
+                      const Text('ยอดรับชมรายวันใน 7 วันที่มีข้อมูล',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                      if (dailySorted.isEmpty)
+                        const Card(child: Padding(
+                          padding: EdgeInsets.all(14),
+                          child: Text('ยังไม่มีข้อมูลวันที่บันทึกได้ในช่วง 7 วันที่ผ่านมา'),
+                        ))
+                      else
+                        ...dailySorted.map((entry) => Card(
+                          child: ListTile(
+                            title: Text(entry.key),
+                            trailing: Text('${entry.value} ครั้ง',
+                                style: const TextStyle(color: AdminTheme.gold, fontWeight: FontWeight.bold)),
+                          ),
+                        )),
                       const SizedBox(height: 8),
                       const Text('ละครที่มีการรับชมมากที่สุดในข้อมูลที่โหลด',
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),

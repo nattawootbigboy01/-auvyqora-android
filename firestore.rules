@@ -80,6 +80,20 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Append-only audit trail for privileged admin actions.
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'actorUid', 'action', 'targetType', 'targetId', 'createdAt'
+        ])
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.action in ['create', 'update', 'delete', 'suspend', 'activate']
+        && request.resource.data.targetType in ['drama', 'episode', 'member']
+        && request.resource.data.targetId is string;
+      allow update, delete: if false;
+    }
+
     match /dramas/{dramaId} {
       allow read: if isAdmin() || (accountCanRead() && resource.data.status == 'published');
       allow create, update, delete: if isAdmin();
