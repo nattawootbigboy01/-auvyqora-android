@@ -1,54 +1,156 @@
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
 import '../theme/app_theme.dart';
 
-class PlayerScreen extends StatelessWidget {
-  const PlayerScreen({super.key, required this.dramaTitle, required this.episodeTitle});
+class PlayerScreen extends StatefulWidget {
+  const PlayerScreen({
+    super.key,
+    required this.dramaTitle,
+    required this.episodeTitle,
+    this.hlsUrl = '',
+  });
 
   final String dramaTitle;
   final String episodeTitle;
+  final String hlsUrl;
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  State<PlayerScreen> createState() => _PlayerScreenState();
+}
+
+class _PlayerScreenState extends State<PlayerScreen> {
+  VideoPlayerController? _controller;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.hlsUrl.startsWith('https://') || widget.hlsUrl.startsWith('http://')) {
+      _initializePlayer();
+    }
+  }
+
+  Future<void> _initializePlayer() async {
+    final controller = VideoPlayerController.networkUrl(Uri.parse(widget.hlsUrl));
+    _controller = controller;
+    try {
+      await controller.initialize();
+      if (!mounted) return;
+      await controller.setLooping(false);
+      setState(() {});
+      await controller.play();
+    } catch (_) {
+      if (mounted) setState(() => _error = 'เปิดวิดีโอไม่ได้ กรุณาตรวจสอบลิงก์สตรีม');
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  String _time(Duration value) {
+    final minutes = value.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = value.inSeconds.remainder(60).toString().padLeft(2, '0');
+    final hours = value.inHours;
+    return hours > 0 ? '$hours:$minutes:$seconds' : '$minutes:$seconds';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = _controller;
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
         backgroundColor: Colors.black,
-        appBar: AppBar(
-          backgroundColor: Colors.black,
-          title: Text(dramaTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
-        ),
-        body: Column(
-          children: [
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                color: const Color(0xFF17121A),
-                child: const Center(
-                  child: SingleChildScrollView(
-                    padding: EdgeInsets.all(20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.ondemand_video_outlined, size: 58, color: AppTheme.gold),
-                        SizedBox(height: 12),
-                        Text('พื้นที่เครื่องเล่นวิดีโอ', textAlign: TextAlign.center),
-                        SizedBox(height: 4),
-                        Text('รอเชื่อมต่อ HLS Streaming', textAlign: TextAlign.center),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+        title: Text(widget.dramaTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: Center(
+              child: controller == null
+                  ? _placeholder()
+                  : controller.value.hasError || _error != null
+                      ? Text(_error ?? 'เกิดข้อผิดพลาดในการเล่นวิดีโอ',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.white))
+                      : !controller.value.isInitialized
+                          ? const CircularProgressIndicator(color: AppTheme.gold)
+                          : AspectRatio(
+                              aspectRatio: controller.value.aspectRatio,
+                              child: VideoPlayer(controller),
+                            ),
             ),
+          ),
+          if (controller != null && controller.value.isInitialized)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
+              child: Column(
+                children: [
+                  VideoProgressIndicator(controller, allowScrubbing: true,
+                      colors: const VideoProgressColors(
+                        playedColor: AppTheme.gold,
+                        bufferedColor: Colors.white38,
+                        backgroundColor: Colors.white12,
+                      )),
+                  Row(
+                    children: [
+                      Text(_time(controller.value.position),
+                          style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: () => setState(() {
+                          controller.value.isPlaying ? controller.pause() : controller.play();
+                        }),
+                        icon: Icon(controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
+                            color: AppTheme.gold, size: 30),
+                      ),
+                      const Spacer(),
+                      Text(_time(controller.value.duration),
+                          style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                    ],
+                  ),
+                ],
+              ),
+            )
+          else
             SafeArea(
               top: false,
               child: ListTile(
-                title: Text(episodeTitle, maxLines: 2, overflow: TextOverflow.ellipsis),
-                subtitle: const Text(
-                  'ตัวเล่นนี้ยังเป็นหน้าจอเตรียมระบบสตรีมมิง',
+                title: Text(widget.episodeTitle, maxLines: 2, overflow: TextOverflow.ellipsis),
+                subtitle: Text(
+                  _error ?? (widget.hlsUrl.isEmpty
+                      ? 'ตอนนี้ยังไม่มีลิงก์วิดีโอ'
+                      : 'กำลังเชื่อมต่อสตรีม'),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
             ),
-          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _placeholder() => Container(
+        width: double.infinity,
+        color: const Color(0xFF17121A),
+        child: const Center(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.ondemand_video_outlined, size: 58, color: AppTheme.gold),
+                SizedBox(height: 12),
+                Text('พื้นที่เครื่องเล่นวิดีโอ', textAlign: TextAlign.center),
+                SizedBox(height: 4),
+                Text('รอเชื่อมต่อลิงก์ HLS Streaming', textAlign: TextAlign.center),
+              ],
+            ),
+          ),
         ),
       );
 }
