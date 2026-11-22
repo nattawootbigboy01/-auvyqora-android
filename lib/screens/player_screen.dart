@@ -51,9 +51,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
       if (widget.initialPositionSeconds > 0 && widget.initialPositionSeconds < controller.value.duration.inSeconds) {
         await controller.seekTo(Duration(seconds: widget.initialPositionSeconds));
       }
-      await _tracker.recordView();
       setState(() {});
       await controller.play();
+      await _tracker.recordView();
     } catch (_) {
       if (mounted) {
         setState(() => _error = 'เปิดวิดีโอไม่ได้ กรุณาตรวจสอบลิงก์สตรีม');
