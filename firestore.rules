@@ -5,15 +5,46 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.admin == true;
     }
 
+    function accountCanRead() {
+      return request.auth == null ||
+        (request.auth.token.email_verified == true &&
+          (!exists(/databases/$(database)/documents/users/$(request.auth.uid)) ||
+            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status != 'suspended'));
+    }
+
+    match /users/{userId} {
+      allow read: if isAdmin() || (request.auth != null && request.auth.uid == userId);
+      allow create: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly([
+          'email', 'displayName', 'status', 'createdAt', 'lastSeenAt'
+        ])
+        && request.resource.data.status == 'active'
+        && request.resource.data.email == request.auth.token.email;
+      allow update: if (
+          request.auth != null
+          && request.auth.uid == userId
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['email', 'displayName', 'lastSeenAt'])
+          && request.resource.data.email == request.auth.token.email
+        ) || (
+          isAdmin()
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'updatedAt'])
+          && request.resource.data.status in ['active', 'suspended']
+        );
+      allow delete: if false;
+    }
+
     match /dramas/{dramaId} {
-      allow read: if isAdmin() || resource.data.status == 'published';
+      allow read: if isAdmin() || (accountCanRead() && resource.data.status == 'published');
       allow create, update, delete: if isAdmin();
 
       match /episodes/{episodeId} {
         function parentIsPublished() {
           return get(/databases/$(database)/documents/dramas/$(dramaId)).data.status == 'published';
         }
-        allow read: if isAdmin() || (parentIsPublished() && resource.data.status == 'published');
+        allow read: if isAdmin() || (accountCanRead() && parentIsPublished() && resource.data.status == 'published');
         allow create, update, delete: if isAdmin();
       }
     }
