@@ -105,7 +105,9 @@ class WatchHistoryScreen extends StatelessWidget {
                 subtitle: Text('${(data['episodeTitle'] ?? 'ตอน').toString()} • ${_position(data['lastPositionSeconds'])}'),
                 onTap: () async {
                   final dramaId = (data['dramaId'] ?? '').toString();
-                  if (dramaId.isEmpty) return;
+                  if (dramaId.isEmpty) {
+                    return;
+                  }
                   try {
                     final episode = await FirebaseFirestore.instance
                         .collection('dramas').doc(dramaId).collection('episodes').doc(doc.id).get();
@@ -117,7 +119,9 @@ class WatchHistoryScreen extends StatelessWidget {
                       );
                       return;
                     }
-                    if (!context.mounted) return;
+                    if (!context.mounted) {
+                      return;
+                    }
                     await Navigator.push(context, MaterialPageRoute<void>(
                       builder: (_) => PlayerScreen(
                         dramaId: dramaId,
