@@ -285,7 +285,7 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
       allowMultiple: false,
       withData: false,
     );
-    if (!mounted || picked == null || picked.files.isEmpty) return;
+    if (!context.mounted || picked == null || picked.files.isEmpty) return;
     final file = picked.files.single;
     final path = file.path;
     final extension = (file.extension ?? '').toLowerCase();
@@ -320,7 +320,7 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
         'uploadError': FieldValue.delete(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      if (!mounted) return;
+      if (!context.mounted) return;
       final task = FirebaseStorage.instance.ref(objectPath).putFile(
         File(path),
         SettableMetadata(
@@ -360,18 +360,18 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
       );
       dialogOpen = true;
       await task;
-      if (mounted && dialogOpen) {
+      if (context.mounted && dialogOpen) {
         Navigator.of(context, rootNavigator: true).pop();
         dialogOpen = false;
       }
       await dialogFuture;
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('อัปโหลดสำเร็จ กำลังแปลงวิดีโอเป็น HLS')),
         );
       }
     } catch (error) {
-      if (mounted && dialogOpen) {
+      if (context.mounted && dialogOpen) {
         Navigator.of(context, rootNavigator: true).maybePop();
         dialogOpen = false;
       }
@@ -383,7 +383,7 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
           'updatedAt': FieldValue.serverTimestamp(),
         });
       } catch (_) {}
-      if (mounted) _showError(context, error);
+      if (context.mounted) _showError(context, error);
     }
   }
 
