@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
+import '../services/playback_tracker.dart';
 import 'package:video_player/video_player.dart';
 import '../theme/app_theme.dart';
 
 class PlayerScreen extends StatefulWidget {
   const PlayerScreen({
     super.key,
+    this.dramaId = '',
+    this.episodeId = '',
     required this.dramaTitle,
     required this.episodeTitle,
     this.hlsUrl = '',
   });
 
+  final String dramaId;
+  final String episodeId;
   final String dramaTitle;
   final String episodeTitle;
   final String hlsUrl;
@@ -21,10 +26,13 @@ class PlayerScreen extends StatefulWidget {
 class _PlayerScreenState extends State<PlayerScreen> {
   VideoPlayerController? _controller;
   String? _error;
+  late final PlaybackTracker _tracker;
+  int _lastPositionBucket = -1;
 
   @override
   void initState() {
     super.initState();
+    _tracker = PlaybackTracker(dramaId: widget.dramaId, episodeId: widget.episodeId, dramaTitle: widget.dramaTitle, episodeTitle: widget.episodeTitle);
     if (widget.hlsUrl.startsWith('https://') || widget.hlsUrl.startsWith('http://')) {
       _initializePlayer();
     }
@@ -38,6 +46,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       await controller.initialize();
       if (!mounted) return;
       await controller.setLooping(false);
+      await _tracker.recordView();
       setState(() {});
       await controller.play();
     } catch (_) {
@@ -58,6 +67,13 @@ class _PlayerScreenState extends State<PlayerScreen> {
         return;
       }
     }
+    // Save a checkpoint every 15 seconds; writes are throttled by PlaybackTracker.
+    final seconds = controller.value.position.inSeconds;
+    final bucket = seconds ~/ 15;
+    if (bucket != _lastPositionBucket) {
+      _lastPositionBucket = bucket;
+      _tracker.savePosition(seconds);
+    }
     // Rebuild controls as playback position and playing state change.
     setState(() {});
   }
@@ -65,6 +81,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
   @override
   void dispose() {
     final controller = _controller;
+    if (controller != null && controller.value.isInitialized) {
+      _tracker.savePosition(controller.value.position.inSeconds);
+    }
     controller?.removeListener(_onControllerChanged);
     controller?.dispose();
     super.dispose();
