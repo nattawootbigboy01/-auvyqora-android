@@ -705,6 +705,19 @@ class _ManageMembersPageState extends State<ManageMembersPage> {
         'status': status,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+      try {
+        final actor = FirebaseAuth.instance.currentUser;
+        await FirebaseFirestore.instance.collection('audit_logs').add({
+          'actorUid': actor?.uid ?? '',
+          'action': status == 'suspended' ? 'suspend' : 'activate',
+          'targetType': 'member',
+          'targetId': ref.id,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      } catch (_) {
+        // The member status change remains authoritative; audit writes are best-effort
+        // until the matching Firestore Rules revision is deployed.
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(status == 'suspended' ? 'ระงับบัญชีแล้ว' : 'เปิดใช้งานบัญชีแล้ว')),

@@ -19,13 +19,17 @@ class ContentRepository {
 
   Future<void> _audit(String action, String targetType, String targetId) async {
     final user = FirebaseAuth.instance.currentUser;
-    await _db.collection('audit_logs').add({
-      'actorUid': user?.uid ?? '',
-      'action': action,
-      'targetType': targetType,
-      'targetId': targetId,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      await _db.collection('audit_logs').add({
+        'actorUid': user?.uid ?? '',
+        'action': action,
+        'targetType': targetType,
+        'targetId': targetId,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {
+      // Do not report a content save as failed only because audit rules are not deployed yet.
+    }
   }
 
   Future<void> saveDrama(String? id, Map<String, dynamic> data) async {
