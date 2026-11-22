@@ -530,7 +530,7 @@ class _ManageMembersPageState extends State<ManageMembersPage> {
             : 'สมาชิกจะกลับมาใช้งานเนื้อหาที่ต้องเข้าสู่ระบบได้'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('ยกเลิก')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text('$label')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(label)),
         ],
       ),
     );
