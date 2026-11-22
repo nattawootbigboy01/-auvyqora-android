@@ -232,10 +232,23 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
               itemCount: episodes.length,
               itemBuilder: (context, index) {
                 final doc = episodes[index]; final data = doc.data();
+                final uploadStatus = (data['uploadStatus'] ?? '').toString();
+                final uploadLabel = switch (uploadStatus) {
+                  'uploading' => 'กำลังอัปโหลด',
+                  'processing' => 'กำลังแปลงเป็น HLS',
+                  'ready' => 'วิดีโอพร้อมเล่น',
+                  'failed' => 'แปลงวิดีโอไม่สำเร็จ',
+                  _ => '',
+                };
+                final uploadError = (data['uploadError'] ?? '').toString();
                 return Card(child: ListTile(
                   leading: CircleAvatar(child: Text('${data['number'] ?? index + 1}')),
                   title: Text((data['title'] ?? 'ไม่มีชื่อตอน').toString()),
-                  subtitle: Text('${data['durationLabel'] ?? ''} • ${data['status'] == _published ? 'เผยแพร่' : 'ฉบับร่าง'}'),
+                  subtitle: Text([
+                    '${data['durationLabel'] ?? ''} • ${data['status'] == _published ? 'เผยแพร่' : 'ฉบับร่าง'}',
+                    if (uploadLabel.isNotEmpty) uploadLabel,
+                    if (uploadStatus == 'failed' && uploadError.isNotEmpty) uploadError,
+                  ].join(' • '), maxLines: 3, overflow: TextOverflow.ellipsis),
                   trailing: PopupMenuButton<String>(
                     onSelected: (v) async {
                       if (v == 'edit') {
@@ -316,6 +329,7 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
           },
         ),
       );
+      var dialogOpen = true;
       final dialogFuture = showDialog<void>(
         context: context,
         barrierDismissible: false,
@@ -343,7 +357,10 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
         ),
       );
       await task;
-      if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
+      if (context.mounted && dialogOpen) {
+        Navigator.of(context, rootNavigator: true).pop();
+        dialogOpen = false;
+      }
       await dialogFuture;
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -351,8 +368,10 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
         );
       }
     } catch (error) {
-      if (context.mounted) {
+      if (context.mounted && dialogOpen) {
         Navigator.of(context, rootNavigator: true).maybePop();
+        dialogOpen = false;
+        await dialogFuture;
       }
       try {
         await _repo.dramas.doc(dramaId).collection('episodes').doc(episodeId).update({
