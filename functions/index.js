@@ -167,15 +167,7 @@ exports.transcodeUploadedEpisode = onObjectFinalized({
 
     const playlistToken = randomUUID();
     const localPlaylist = await readFile(playlistPath, "utf8");
-    const rewrittenPlaylist = localPlaylist.split(/\r?\n/).map((line) => {
-      const segmentName = line.trim();
-      if (!segmentName.endsWith(".ts")) return line;
-      const token = randomUUID();
-      const outputPath = "hls/" + dramaId + "/" + episodeId + "/" + segmentName;
-      return storageDownloadUrl(bucketName, outputPath, token);
-    }).join("\n");
 
-    // The playlist references each segment by its Firebase download token.
     const segmentTokens = new Map();
     for (const segmentName of segmentNames) segmentTokens.set(segmentName, randomUUID());
     const finalPlaylist = localPlaylist.split(/\r?\n/).map((line) => {
