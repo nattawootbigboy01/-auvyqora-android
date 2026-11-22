@@ -414,57 +414,88 @@ class _AdminDashboardState extends State<AdminDashboard> {
       );
 
   Widget _reports() => StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance.collection('dramas').snapshots(),
-        builder: (context, dramaSnapshot) {
+        stream: FirebaseFirestore.instance.collection('view_events').orderBy('createdAt', descending: true).limit(500).snapshots(),
+        builder: (context, viewSnapshot) {
           return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: FirebaseFirestore.instance.collection('users').snapshots(),
-            builder: (context, userSnapshot) {
-              final hasError = dramaSnapshot.hasError || userSnapshot.hasError;
-              final connected = dramaSnapshot.hasData && userSnapshot.hasData && !hasError;
-              final dramaCount = dramaSnapshot.data?.docs.length;
-              final memberCount = userSnapshot.data?.docs.length;
-              return ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  const Text('รายงานและสถานะระบบ',
-                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 14),
-                  Card(
-                    child: ListTile(
-                      leading: Icon(
-                        hasError ? Icons.cloud_off : connected ? Icons.cloud_done : Icons.cloud_sync,
-                        color: hasError ? Colors.orangeAccent : AdminTheme.gold,
+            stream: FirebaseFirestore.instance.collection('dramas').snapshots(),
+            builder: (context, dramaSnapshot) {
+              return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: FirebaseFirestore.instance.collection('users').snapshots(),
+                builder: (context, userSnapshot) {
+                  final hasError = viewSnapshot.hasError || dramaSnapshot.hasError || userSnapshot.hasError;
+                  final views = viewSnapshot.data?.docs ?? [];
+                  final dramaDocs = dramaSnapshot.data?.docs ?? [];
+                  final memberCount = userSnapshot.data?.docs.length;
+                  final byDrama = <String, int>{};
+                  for (final event in views) {
+                    final id = (event.data()['dramaId'] ?? '').toString();
+                    if (id.isNotEmpty) byDrama[id] = (byDrama[id] ?? 0) + 1;
+                  }
+                  final sorted = byDrama.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+                  final titles = {for (final doc in dramaDocs) doc.id: (doc.data()['title'] ?? doc.id).toString()};
+                  return ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      const Text('รายงานและสถิติการรับชม',
+                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 14),
+                      Card(
+                        child: ListTile(
+                          leading: Icon(hasError ? Icons.cloud_off : Icons.analytics_outlined,
+                              color: hasError ? Colors.orangeAccent : AdminTheme.gold),
+                          title: Text(hasError ? 'โหลดรายงานไม่สำเร็จ' : 'ข้อมูลจากเหตุการณ์รับชมจริง'),
+                          subtitle: Text(hasError
+                              ? 'ตรวจสอบสิทธิ์ Admin และ Firestore Rules: ${viewSnapshot.error ?? dramaSnapshot.error ?? userSnapshot.error}'
+                              : 'แสดงข้อมูลสูงสุด 500 เหตุการณ์ล่าสุด'),
+                        ),
                       ),
-                      title: Text(hasError
-                          ? 'เชื่อมต่อฐานข้อมูลไม่สำเร็จ'
-                          : connected ? 'เชื่อมต่อ Cloud Firestore แล้ว' : 'กำลังตรวจสอบการเชื่อมต่อ'),
-                      subtitle: Text(hasError
-                          ? 'ข้อผิดพลาด: ${dramaSnapshot.error ?? userSnapshot.error}'
-                          : 'ตรวจสอบข้อมูลละครและสมาชิกจากฐานข้อมูลจริง'),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  _MetricCard(
-                    icon: Icons.movie_outlined,
-                    title: 'ละครในระบบ',
-                    value: dramaSnapshot.hasError ? 'อ่านข้อมูลไม่ได้' : dramaCount?.toString() ?? 'กำลังโหลด',
-                    note: 'จำนวนเอกสารใน dramas',
-                  ),
-                  _MetricCard(
-                    icon: Icons.people_outline,
-                    title: 'โปรไฟล์สมาชิก',
-                    value: userSnapshot.hasError ? 'อ่านข้อมูลไม่ได้' : memberCount?.toString() ?? 'กำลังโหลด',
-                    note: 'จำนวนเอกสารใน users',
-                  ),
-                  const Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Text(
-                        'รายงานยอดรับชมและรายได้ยังไม่เปิดใช้ เพราะระบบยังไม่มีการบันทึกเหตุการณ์รับชมและรายการธุรกรรมจริง หน้านี้จะไม่สร้างตัวเลขจำลอง',
+                      _MetricCard(
+                        icon: Icons.play_circle_outline,
+                        title: 'ยอดเปิดรับชมที่บันทึกได้',
+                        value: viewSnapshot.hasError ? 'อ่านข้อมูลไม่ได้' : viewSnapshot.hasData ? views.length.toString() : 'กำลังโหลด',
+                        note: 'นับจาก view_events ที่อ่านได้ใน 500 รายการล่าสุด',
                       ),
-                    ),
-                  ),
-                ],
+                      _MetricCard(
+                        icon: Icons.people_outline,
+                        title: 'โปรไฟล์สมาชิก',
+                        value: userSnapshot.hasError ? 'อ่านข้อมูลไม่ได้' : memberCount?.toString() ?? 'กำลังโหลด',
+                        note: 'จำนวนเอกสารใน users',
+                      ),
+                      const _MetricCard(
+                        icon: Icons.payments_outlined,
+                        title: 'รายได้จริง',
+                        value: 'ยังไม่มีข้อมูล',
+                        note: 'ยังไม่มีระบบธุรกรรมหรือการชำระเงิน',
+                      ),
+                      const SizedBox(height: 8),
+                      const Text('ละครที่มีการรับชมมากที่สุดในข้อมูลที่โหลด',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                      const SizedBox(height: 8),
+                      if (!viewSnapshot.hasData && !viewSnapshot.hasError)
+                        const Center(child: CircularProgressIndicator())
+                      else if (sorted.isEmpty)
+                        const Card(child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Text('ยังไม่มีเหตุการณ์รับชมที่บันทึกได้'),
+                        ))
+                      else
+                        ...sorted.take(10).map((entry) => Card(
+                          child: ListTile(
+                            leading: const Icon(Icons.movie_outlined, color: AdminTheme.gold),
+                            title: Text(titles[entry.key] ?? entry.key),
+                            trailing: Text('${entry.value} ครั้ง',
+                                style: const TextStyle(color: AdminTheme.gold, fontWeight: FontWeight.bold)),
+                          ),
+                        )),
+                      const Card(
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Text('สถิตินี้นับการเปิดเล่นที่บันทึกสำเร็จ ไม่ใช่จำนวนผู้ชมไม่ซ้ำ และจำกัดการอ่านไว้ 500 เหตุการณ์ล่าสุด รายได้จะไม่แสดงจนกว่าจะมีระบบธุรกรรมจริง'),
+                        ),
+                      ),
+                    ],
+                  );
+                },
               );
             },
           );
