@@ -36,6 +36,50 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // A member can manage only their own saved dramas and playback history.
+    match /users/{userId}/favorites/{dramaId} {
+      allow read: if request.auth != null && request.auth.uid == userId
+        && request.auth.token.email_verified == true;
+      allow create, update: if request.auth != null
+        && request.auth.uid == userId
+        && request.auth.token.email_verified == true
+        && request.resource.data.keys().hasOnly(['dramaId', 'createdAt'])
+        && request.resource.data.dramaId == dramaId;
+      allow delete: if request.auth != null && request.auth.uid == userId
+        && request.auth.token.email_verified == true;
+    }
+
+    match /users/{userId}/watch_history/{episodeId} {
+      allow read: if request.auth != null && request.auth.uid == userId
+        && request.auth.token.email_verified == true;
+      allow create, update: if request.auth != null
+        && request.auth.uid == userId
+        && request.auth.token.email_verified == true
+        && request.resource.data.keys().hasOnly([
+          'dramaId', 'episodeId', 'dramaTitle', 'episodeTitle',
+          'lastPositionSeconds', 'updatedAt'
+        ])
+        && request.resource.data.episodeId == episodeId
+        && request.resource.data.lastPositionSeconds is number
+        && request.resource.data.lastPositionSeconds >= 0;
+      allow delete: if request.auth != null && request.auth.uid == userId
+        && request.auth.token.email_verified == true;
+    }
+
+    // Playback events are written by verified viewers; only admins can read analytics.
+    match /view_events/{eventId} {
+      allow create: if request.auth != null
+        && request.auth.token.email_verified == true
+        && request.resource.data.keys().hasOnly([
+          'uid', 'dramaId', 'episodeId', 'createdAt'
+        ])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.dramaId is string
+        && request.resource.data.episodeId is string;
+      allow read: if isAdmin();
+      allow update, delete: if false;
+    }
+
     match /dramas/{dramaId} {
       allow read: if isAdmin() || (accountCanRead() && resource.data.status == 'published');
       allow create, update, delete: if isAdmin();
