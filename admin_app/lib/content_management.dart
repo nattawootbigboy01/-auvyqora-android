@@ -285,7 +285,7 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
       allowMultiple: false,
       withData: false,
     );
-    if (picked == null || picked.files.isEmpty) return;
+    if (!mounted || picked == null || picked.files.isEmpty) return;
     final file = picked.files.single;
     final path = file.path;
     final extension = (file.extension ?? '').toLowerCase();
@@ -312,12 +312,15 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
     };
     final safeName = file.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
     final objectPath = 'uploads/${user.uid}/$dramaId/$episodeId/${DateTime.now().millisecondsSinceEpoch}_$safeName';
+    var dialogOpen = false;
+    Future<void>? dialogFuture;
     try {
       await _repo.dramas.doc(dramaId).collection('episodes').doc(episodeId).update({
         'uploadStatus': 'uploading',
         'uploadError': FieldValue.delete(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
+      if (!mounted) return;
       final task = FirebaseStorage.instance.ref(objectPath).putFile(
         File(path),
         SettableMetadata(
@@ -329,8 +332,7 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
           },
         ),
       );
-      var dialogOpen = true;
-      final dialogFuture = showDialog<void>(
+      dialogFuture = showDialog<void>(
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => StreamBuilder<TaskSnapshot>(
@@ -356,23 +358,24 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
           },
         ),
       );
+      dialogOpen = true;
       await task;
-      if (context.mounted && dialogOpen) {
+      if (mounted && dialogOpen) {
         Navigator.of(context, rootNavigator: true).pop();
         dialogOpen = false;
       }
       await dialogFuture;
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('อัปโหลดสำเร็จ กำลังแปลงวิดีโอเป็น HLS')),
         );
       }
     } catch (error) {
-      if (context.mounted && dialogOpen) {
+      if (mounted && dialogOpen) {
         Navigator.of(context, rootNavigator: true).maybePop();
         dialogOpen = false;
-        await dialogFuture;
       }
+      if (dialogFuture != null) await dialogFuture;
       try {
         await _repo.dramas.doc(dramaId).collection('episodes').doc(episodeId).update({
           'uploadStatus': 'failed',
@@ -380,7 +383,7 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
           'updatedAt': FieldValue.serverTimestamp(),
         });
       } catch (_) {}
-      if (context.mounted) _showError(context, error);
+      if (mounted) _showError(context, error);
     }
   }
 
