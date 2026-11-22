@@ -479,7 +479,7 @@ class _ManageMembersPageState extends State<ManageMembersPage> {
                 }
                 if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                 final query = _search.text.trim().toLowerCase();
-                // Sort locally so legacy profiles without createdAt are not omitted.
+                // Keep legacy profiles visible; orderBy(createdAt) omits documents missing that field.
                 final allDocs = snapshot.data!.docs.toList()
                   ..sort((a, b) {
                     final aCreated = a.data()['createdAt'];
