@@ -86,10 +86,10 @@ class HomeScreen extends StatelessWidget {
                     children: [
                       Icon(Icons.movie_filter_outlined, size: 58, color: AppTheme.gold),
                       SizedBox(height: 14),
-                      Text('ยังไม่มีซีรีส์ที่เผยแพร่',
+                      Text('ยังไม่มีซีรีส์ที่เผยแพร่ในฐานข้อมูล',
                           style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
                       SizedBox(height: 8),
-                      Text('ซีรีส์ที่ผู้ดูแลเผยแพร่จะแสดงที่หน้านี้',
+                      Text('เพิ่มละครในแอป Admin แล้วตั้งสถานะเป็น “เผยแพร่” ซีรีส์จะแสดงที่หน้านี้',
                           textAlign: TextAlign.center),
                     ],
                   ),
