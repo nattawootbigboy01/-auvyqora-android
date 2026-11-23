@@ -14,7 +14,9 @@ service firebase.storage {
 
     // Published HLS assets are public media. Only the trusted backend writes them.
     match /hls/{dramaId}/{episodeId}/{fileName} {
-      allow read: if true;
+      // HLS is delivered through unguessable Firebase download tokens stored in episode documents.
+      // Deny unauthenticated SDK/list access to the bucket path itself.
+      allow read: if false;
       allow write: if false;
     }
 
