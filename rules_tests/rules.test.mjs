@@ -119,13 +119,34 @@ describe('Storage Rules', () => {
       new Uint8Array([1, 2, 3]), { contentType: 'video/mp4' }));
   });
 
-  it('denies direct SDK reads of HLS objects', async () => {
+  it('denies uploads from unverified admins, other users paths, and non-video content', async () => {
+    const unverifiedAdmin = env.authenticatedContext('admin-uid-123', {
+      email: 'admin@example.com', email_verified: false, admin: true,
+    }).storage();
+    await assertFails(uploadBytes(ref(unverifiedAdmin, 'uploads/admin-uid-123/published/ep1/source.mp4'),
+      new Uint8Array([1, 2, 3]), { contentType: 'video/mp4' }));
+
     const adminStorage = verifiedAdmin().storage();
+    await assertFails(uploadBytes(ref(adminStorage, 'uploads/someone-else/published/ep1/source.mp4'),
+      new Uint8Array([1, 2, 3]), { contentType: 'video/mp4' }));
+    await assertFails(uploadBytes(ref(adminStorage, 'uploads/admin-uid-123/published/ep1/not-video.bin'),
+      new Uint8Array([1, 2, 3]), { contentType: 'application/octet-stream' }));
+  });
+
+  it('denies client overwrite/delete of source uploads and all direct HLS access', async () => {
+    const adminStorage = verifiedAdmin().storage();
+    const sourceRef = ref(adminStorage, 'uploads/admin-uid-123/published/ep1/source.mp4');
+    await assertSucceeds(uploadBytes(sourceRef, new Uint8Array([1, 2, 3]), { contentType: 'video/mp4' }));
+    await assertFails(uploadBytes(sourceRef, new Uint8Array([4, 5, 6]), { contentType: 'video/mp4' }));
+    await assertFails(getBytes(sourceRef));
+
     await env.withSecurityRulesDisabled(async (context) => {
       await uploadBytes(ref(context.storage(), 'hls/published/ep1/index.m3u8'),
         new Uint8Array([35, 69, 88, 84, 77, 51, 85]), { contentType: 'application/vnd.apple.mpegurl' });
     });
     await assertFails(getBytes(ref(adminStorage, 'hls/published/ep1/index.m3u8')));
     await assertFails(getBytes(ref(verifiedMember().storage(), 'hls/published/ep1/index.m3u8')));
+    await assertFails(uploadBytes(ref(adminStorage, 'hls/published/ep1/forged.ts'),
+      new Uint8Array([1, 2, 3]), { contentType: 'video/mp2t' }));
   });
 });
