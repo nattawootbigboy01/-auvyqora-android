@@ -10,6 +10,7 @@ const { FieldValue, getFirestore } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onObjectFinalized } = require("firebase-functions/v2/storage");
+const { onDocumentDeleted } = require("firebase-functions/v2/firestore");
 const ffmpegPath = require("ffmpeg-static");
 
 initializeApp();
@@ -100,6 +101,7 @@ exports.transcodeUploadedEpisode = onObjectFinalized({
   cpu: 2,
   timeoutSeconds: 540,
   maxInstances: 1,
+  concurrency: 1,
 }, async (event) => {
   const object = event.data;
   const objectPath = object.name || "";
@@ -153,14 +155,12 @@ exports.transcodeUploadedEpisode = onObjectFinalized({
     if (segmentNames.length === 0) throw new Error("ไม่พบไฟล์ HLS segment หลังแปลงวิดีโอ");
 
     for (const segmentName of segmentNames) {
-      const token = randomUUID();
       const outputPath = "hls/" + dramaId + "/" + episodeId + "/" + segmentName;
       await bucket.file(outputPath).save(await readFile(path.join(outputDir, segmentName)), {
         resumable: false,
         metadata: {
           contentType: "video/mp2t",
           cacheControl: "public,max-age=31536000,immutable",
-          metadata: { firebaseStorageDownloadTokens: token },
         },
       });
     }
@@ -213,3 +213,30 @@ exports.transcodeUploadedEpisode = onObjectFinalized({
     await rm(workDir, { recursive: true, force: true });
   }
 });
+
+
+// Remove generated media when an episode is deleted. Source uploads are removed when
+// their object path was recorded by the Admin upload flow.
+exports.cleanupDeletedEpisodeMedia = onDocumentDeleted(
+  "dramas/{dramaId}/episodes/{episodeId}",
+  async (event) => {
+    const before = event.data && event.data.data();
+    if (!before) return;
+    const { dramaId, episodeId } = event.params;
+    const bucket = getStorage().bucket();
+    const hlsPrefix = "hls/" + dramaId + "/" + episodeId + "/";
+    const [hlsFiles] = await bucket.getFiles({ prefix: hlsPrefix });
+    if (hlsFiles.length) {
+      await Promise.all(hlsFiles.map((file) => file.delete().catch((error) => {
+        if (error.code !== 404) throw error;
+      })));
+    }
+    const sourcePath = before.sourceObjectPath;
+    if (typeof sourcePath === "string" && sourcePath.startsWith("uploads/")) {
+      await bucket.file(sourcePath).delete().catch((error) => {
+        if (error.code !== 404) throw error;
+      });
+    }
+    console.log("Deleted episode media cleanup complete", { dramaId, episodeId, hlsFiles: hlsFiles.length });
+  }
+);
