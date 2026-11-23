@@ -197,6 +197,16 @@ exports.transcodeUploadedEpisode = onObjectFinalized({
   const db = getFirestore();
   const bucket = getStorage().bucket(object.bucket);
   const episodeRef = db.collection("dramas").doc(dramaId).collection("episodes").doc(episodeId);
+  const episodeSnapshot = await episodeRef.get();
+  if (!episodeSnapshot.exists || episodeSnapshot.get("sourceObjectPath") !== objectPath) {
+    // The episode may have been deleted or a newer upload may have replaced this
+    // object before its finalize event was processed. Do not recreate stale data.
+    await bucket.file(objectPath).delete().catch((error) => {
+      if (error.code !== 404) throw error;
+    });
+    console.warn("Ignoring stale upload for missing or replaced episode", objectPath);
+    return;
+  }
   const workDir = await mkdtemp(path.join(tmpdir(), "auvyqora-hls-"));
   const inputPath = path.join(workDir, "source-video");
   const outputDir = path.join(workDir, "hls");
@@ -272,21 +282,43 @@ exports.transcodeUploadedEpisode = onObjectFinalized({
       },
     });
 
-    await episodeRef.set({
-      hlsUrl: storageDownloadUrl(bucketName, hlsObjectPath, playlistToken),
-      uploadStatus: "ready",
-      uploadError: FieldValue.delete(),
-      transcodedAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
+    const finalized = await db.runTransaction(async (tx) => {
+      const currentEpisode = await tx.get(episodeRef);
+      if (!currentEpisode.exists || currentEpisode.get("sourceObjectPath") !== objectPath) {
+        return false;
+      }
+      tx.set(episodeRef, {
+        hlsUrl: storageDownloadUrl(bucketName, hlsObjectPath, playlistToken),
+        uploadStatus: "ready",
+        uploadError: FieldValue.delete(),
+        transcodedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      return true;
+    });
+    if (!finalized) {
+      // A delete or replacement raced with transcoding. Remove stale generated
+      // media instead of resurrecting an episode or publishing an old playlist.
+      await bucket.deleteFiles({ prefix: "hls/" + dramaId + "/" + episodeId + "/", force: true });
+      await bucket.file(objectPath).delete().catch((error) => {
+        if (error.code !== 404) throw error;
+      });
+      console.warn("Discarded HLS output for deleted or replaced episode", objectPath);
+      return;
+    }
     console.log("HLS transcode complete", { dramaId, episodeId, segmentCount: segmentNames.length });
   } catch (error) {
     console.error("HLS transcode failed", objectPath, error);
-    await episodeRef.set({
-      uploadStatus: "failed",
-      uploadError: String(error && error.message ? error.message : error).slice(0, 500),
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
+    await db.runTransaction(async (tx) => {
+      const currentEpisode = await tx.get(episodeRef);
+      if (currentEpisode.exists && currentEpisode.get("sourceObjectPath") === objectPath) {
+        tx.set(episodeRef, {
+          uploadStatus: "failed",
+          uploadError: String(error && error.message ? error.message : error).slice(0, 500),
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
+    });
   } finally {
     await rm(workDir, { recursive: true, force: true });
   }
