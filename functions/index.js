@@ -327,6 +327,13 @@ exports.transcodeUploadedEpisode = onObjectFinalized({
     console.log("HLS transcode complete", { dramaId, episodeId, segmentCount: segmentNames.length });
   } catch (error) {
     console.error("HLS transcode failed", objectPath, error);
+    // Do not leave partially uploaded HLS segments behind after a failed job.
+    await bucket.deleteFiles({
+      prefix: "hls/" + dramaId + "/" + episodeId + "/",
+      force: true,
+    }).catch((cleanupError) => {
+      console.error("HLS partial-output cleanup failed", dramaId, episodeId, cleanupError);
+    });
     await db.runTransaction(async (tx) => {
       const [currentDrama, currentEpisode] = await Promise.all([
         tx.get(dramaRef),
