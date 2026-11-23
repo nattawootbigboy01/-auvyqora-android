@@ -299,7 +299,14 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
     final outputFile = File('${tempDir.path}/$safeName');
     final sink = outputFile.openWrite();
     var written = 0;
+    var sinkClosed = false;
     const maxBytes = 1024 * 1024 * 1024;
+
+    Future<void> closeSink() async {
+      if (sinkClosed) return;
+      sinkClosed = true;
+      await sink.close();
+    }
 
     try {
       await for (final chunk in stream) {
@@ -310,13 +317,13 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
         sink.add(chunk);
       }
       await sink.flush();
-      await sink.close();
+      await closeSink();
       if (written == 0) {
         throw StateError('ไฟล์ที่เลือกไม่มีข้อมูล กรุณาเลือกไฟล์ใหม่');
       }
       return outputFile;
     } catch (_) {
-      await sink.close();
+      await closeSink();
       await tempDir.delete(recursive: true);
       rethrow;
     }
@@ -403,7 +410,6 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
         'uploadError': FieldValue.delete(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      if (!context.mounted) return;
 
       final task = FirebaseStorage.instance.ref(objectPath).putFile(
         uploadFile,
@@ -416,33 +422,35 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
           },
         ),
       );
-      dialogFuture = showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) => StreamBuilder<TaskSnapshot>(
-          stream: task.snapshotEvents,
-          builder: (context, snapshot) {
-            final current = snapshot.data;
-            final total = current?.totalBytes ?? 0;
-            final sent = current?.bytesTransferred ?? 0;
-            final progress = total > 0 ? sent / total : null;
-            return AlertDialog(
-              title: const Text('กำลังอัปโหลดวิดีโอ'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  LinearProgressIndicator(value: progress),
-                  const SizedBox(height: 12),
-                  Text(total > 0
-                      ? '${(sent / 1024 / 1024).toStringAsFixed(1)} / ${(total / 1024 / 1024).toStringAsFixed(1)} MB'
-                      : 'กำลังเตรียมไฟล์'),
-                ],
-              ),
-            );
-          },
-        ),
-      );
-      dialogOpen = true;
+      if (context.mounted) {
+        dialogFuture = showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => StreamBuilder<TaskSnapshot>(
+            stream: task.snapshotEvents,
+            builder: (context, snapshot) {
+              final current = snapshot.data;
+              final total = current?.totalBytes ?? 0;
+              final sent = current?.bytesTransferred ?? 0;
+              final progress = total > 0 ? sent / total : null;
+              return AlertDialog(
+                title: const Text('กำลังอัปโหลดวิดีโอ'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    LinearProgressIndicator(value: progress),
+                    const SizedBox(height: 12),
+                    Text(total > 0
+                        ? '${(sent / 1024 / 1024).toStringAsFixed(1)} / ${(total / 1024 / 1024).toStringAsFixed(1)} MB'
+                        : 'กำลังเตรียมไฟล์'),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+        dialogOpen = true;
+      }
       await task;
       if (context.mounted && dialogOpen) {
         Navigator.of(context, rootNavigator: true).pop();
