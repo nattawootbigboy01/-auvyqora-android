@@ -39,7 +39,7 @@ jobs:
               end = content.find('>', start)
               if end < 0:
                   raise SystemExit("Android application tag is malformed.")
-              content = content[:end + 1] + "\\n" + metadata + content[end + 1:]
+              content = content[:end + 1] + "\n" + metadata + content[end + 1:]
               manifest.write_text(content)
           print("Configured Google's sample AdMob app ID for test ads only.")
           PY
