@@ -16,11 +16,9 @@ It shares the AUVYQORA Firebase project but uses a distinct Android application 
 
 ## Authorization
 
-The app requires a verified email and a trusted Firebase custom claim:
-- `admin: true`, or
-- `role: "admin"`
+The app, Firestore Rules, Storage Rules, and callable backend all require the exact Firebase custom claim `admin: true` and a verified email.
 
-A normal user cannot grant themselves this claim. Set claims only from a trusted, access-controlled server environment using the Firebase Admin SDK. Do not use a client-writable Firestore role field as authorization.
+A `role: "admin"` field or claim is **not** accepted by the current implementation. A normal user cannot grant themselves admin access. Set `admin: true` only from a trusted, access-controlled server environment using the Firebase Admin SDK. Never use a client-writable Firestore field as authorization. After changing claims, sign out and sign in again (or force-refresh the ID token) before testing the Admin app.
 
 ## Current implementation boundary
 
