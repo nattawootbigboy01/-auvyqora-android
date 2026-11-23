@@ -218,9 +218,18 @@ exports.transcodeUploadedEpisode = onObjectFinalized({
   const maxBytes = 1024 * 1024 * 1024;
 
   try {
-    if (Number(object.size || 0) > maxBytes) {
-      throw new Error("ไฟล์วิดีโอมีขนาดเกิน 1 GB");
+    if (Number(object.size || 0) <= 0 || Number(object.size || 0) >= maxBytes) {
+      throw new Error("ไฟล์วิดีโอต้องมีข้อมูลและมีขนาดน้อยกว่า 1 GB");
     }
+
+    // Remove output from a previous version before generating a replacement.
+    // The Admin upload flow has already invalidated the old hlsUrl, so stale
+    // segments are no longer addressable while this replacement is processed.
+    await bucket.deleteFiles({
+      prefix: "hls/" + dramaId + "/" + episodeId + "/",
+      force: true,
+    });
+
     await episodeRef.set({
       uploadStatus: "processing",
       uploadError: FieldValue.delete(),
