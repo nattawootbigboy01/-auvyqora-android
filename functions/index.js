@@ -196,9 +196,14 @@ exports.transcodeUploadedEpisode = onObjectFinalized({
 
   const db = getFirestore();
   const bucket = getStorage().bucket(object.bucket);
-  const episodeRef = db.collection("dramas").doc(dramaId).collection("episodes").doc(episodeId);
-  const episodeSnapshot = await episodeRef.get();
-  if (!episodeSnapshot.exists || episodeSnapshot.get("sourceObjectPath") !== objectPath) {
+  const dramaRef = db.collection("dramas").doc(dramaId);
+  const episodeRef = dramaRef.collection("episodes").doc(episodeId);
+  const [dramaSnapshot, episodeSnapshot] = await Promise.all([
+    dramaRef.get(),
+    episodeRef.get(),
+  ]);
+  if (!dramaSnapshot.exists || !episodeSnapshot.exists ||
+      episodeSnapshot.get("sourceObjectPath") !== objectPath) {
     // The episode may have been deleted or a newer upload may have replaced this
     // object before its finalize event was processed. Do not recreate stale data.
     await bucket.file(objectPath).delete().catch((error) => {
@@ -283,8 +288,12 @@ exports.transcodeUploadedEpisode = onObjectFinalized({
     });
 
     const finalized = await db.runTransaction(async (tx) => {
-      const currentEpisode = await tx.get(episodeRef);
-      if (!currentEpisode.exists || currentEpisode.get("sourceObjectPath") !== objectPath) {
+      const [currentDrama, currentEpisode] = await Promise.all([
+        tx.get(dramaRef),
+        tx.get(episodeRef),
+      ]);
+      if (!currentDrama.exists || !currentEpisode.exists ||
+          currentEpisode.get("sourceObjectPath") !== objectPath) {
         return false;
       }
       tx.set(episodeRef, {
@@ -310,8 +319,12 @@ exports.transcodeUploadedEpisode = onObjectFinalized({
   } catch (error) {
     console.error("HLS transcode failed", objectPath, error);
     await db.runTransaction(async (tx) => {
-      const currentEpisode = await tx.get(episodeRef);
-      if (currentEpisode.exists && currentEpisode.get("sourceObjectPath") === objectPath) {
+      const [currentDrama, currentEpisode] = await Promise.all([
+        tx.get(dramaRef),
+        tx.get(episodeRef),
+      ]);
+      if (currentDrama.exists && currentEpisode.exists &&
+          currentEpisode.get("sourceObjectPath") === objectPath) {
         tx.set(episodeRef, {
           uploadStatus: "failed",
           uploadError: String(error && error.message ? error.message : error).slice(0, 500),
