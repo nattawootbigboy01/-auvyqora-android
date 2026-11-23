@@ -3,6 +3,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'content_management.dart';
 
 Future<void> main() async {
@@ -301,11 +302,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
   int _selected = 0;
   static const _sections = [
     ('ภาพรวม', Icons.dashboard_outlined),
-    ('จัดการละคร', Icons.movie_creation_outlined),
-    ('จัดการตอน', Icons.video_library_outlined),
+    ('จัดการละคร/หมวดหมู่', Icons.movie_creation_outlined),
+    ('จัดการตอน/วิดีโอ', Icons.video_library_outlined),
     ('สมาชิก', Icons.people_outline),
-    ('รายงาน', Icons.analytics_outlined),
+    ('รายงาน/ส่งออก', Icons.analytics_outlined),
+    ('แพ็กเกจ/การชำระเงิน', Icons.workspace_premium_outlined),
+    ('แจ้งเตือน/ปัญหา', Icons.notifications_active_outlined),
+    ('ทีมงาน/สิทธิ์', Icons.admin_panel_settings_outlined),
     ('ประวัติแอดมิน', Icons.history_edu_outlined),
+    ('ตั้งค่าระบบ/ความปลอดภัย', Icons.security_outlined),
   ];
 
   @override
@@ -323,28 +328,91 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ),
         ],
       ),
+      drawer: Drawer(
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 12, 20, 18),
+                child: Text('ศูนย์จัดการ AUVYQORA',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AdminTheme.gold)),
+              ),
+              for (var i = 0; i < _sections.length; i++)
+                ListTile(
+                  leading: Icon(_sections[i].$2, color: _selected == i ? AdminTheme.gold : null),
+                  title: Text(_sections[i].$1),
+                  selected: _selected == i,
+                  onTap: () {
+                    Navigator.pop(context);
+                    setState(() => _selected = i);
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
       body: SafeArea(
-        child: _selected == 0
-            ? _overview()
-            : _selected == 1
-                ? ManageDramasPage()
-                : _selected == 2
-                    ? const ManageEpisodesPage()
-                    : _selected == 3
-                        ? const ManageMembersPage()
-                        : _selected == 4
-                            ? _reports()
-                            : _auditLogs(),
+        child: switch (_selected) {
+          0 => _overview(),
+          1 => ManageDramasPage(),
+          2 => const ManageEpisodesPage(),
+          3 => const ManageMembersPage(),
+          4 => _reports(),
+          5 => const AdminModulePage(
+            title: 'แพ็กเกจและการชำระเงิน',
+            intro: 'พื้นที่จัดการสมาชิกแบบไม่มีโฆษณา แพ็กเกจ และรายการชำระเงิน',
+            items: [
+              ('แพ็กเกจสมาชิก', 'ยังไม่เชื่อมระบบจัดเก็บแพ็กเกจและสิทธิ์สมาชิก'),
+              ('คำสั่งซื้อและสถานะชำระเงิน', 'ยังไม่มี Payment Provider หรือ Webhook ที่ตรวจสอบยอดเงินจริง'),
+              ('ต่ออายุ ยกเลิก และคืนเงิน', 'ยังไม่เปิดใช้งาน เพื่อป้องกันการแสดงสถานะชำระเงินที่ไม่ถูกต้อง'),
+              ('สิทธิ์ดูแบบไม่มีโฆษณา', 'ต้องให้ Backend ยืนยันสิทธิ์และวันหมดอายุก่อนเปิดใช้งาน'),
+            ],
+          ),
+          6 => const AdminModulePage(
+            title: 'แจ้งเตือนและปัญหาระบบ',
+            intro: 'ศูนย์ติดตามเหตุการณ์และปัญหาที่ต้องให้ทีมงานตรวจสอบ',
+            items: [
+              ('กล่องแจ้งเตือนแอดมิน', 'ยังไม่มี collection และระบบส่งแจ้งเตือนกลาง'),
+              ('รายงานปัญหาจากสมาชิก', 'ยังไม่มีแบบฟอร์มรับเรื่องและสถานะ ticket'),
+              ('เหตุการณ์ผิดปกติ', 'ยังไม่มีระบบตรวจจับและแจ้งเตือนอัตโนมัติ'),
+              ('ประวัติการแก้ไขปัญหา', 'จะเชื่อมกับ ticket และ audit log เมื่อกำหนด schema แล้ว'),
+            ],
+          ),
+          7 => const AdminModulePage(
+            title: 'ทีมงานและสิทธิ์ผู้ดูแล',
+            intro: 'สิทธิ์ปัจจุบันตรวจจาก Custom Claims ฝั่ง Firebase ไม่ใช่ค่าที่แก้จากหน้าจอได้',
+            items: [
+              ('Super Admin', 'สงวนสิทธิ์ให้ผู้ดูแลระบบระดับสูงที่กำหนดจาก Backend'),
+              ('Content Admin', 'สิทธิ์จัดการละคร ตอน และสื่อ ต้องเพิ่ม role claims และ Rules แยก'),
+              ('User Admin', 'สิทธิ์ดูแลสมาชิก ต้องเพิ่ม role claims และ callable ที่จำกัดขอบเขต'),
+              ('Finance Admin / Analyst', 'ยังไม่เปิดใช้จนกว่าจะมี schema การเงินและสิทธิ์อ่านรายงานแยก'),
+              ('การเพิ่ม/ถอดผู้ดูแล', 'ปิดการแก้สิทธิ์จากแอปเพื่อป้องกันการยกระดับสิทธิ์โดยผู้ใช้ทั่วไป'),
+            ],
+          ),
+          8 => _auditLogs(),
+          _ => const AdminModulePage(
+            title: 'ตั้งค่าระบบและความปลอดภัย',
+            intro: 'หน้าตรวจสอบขอบเขตการดูแลระบบ โดยไม่เปลี่ยนค่าของ Firebase Production',
+            items: [
+              ('Firebase Authentication', 'ใช้บัญชีที่ยืนยันอีเมลและ Custom Claim admin=true'),
+              ('Firestore / Storage Rules', 'ตรวจสอบด้วย Emulator และ CI ก่อนพิจารณา Deploy'),
+              ('สำรองข้อมูล', 'ยังไม่สั่ง Backup อัตโนมัติหรือสร้างค่าใช้จ่ายบน Cloud'),
+              ('การตั้งค่าระบบ', 'ยังไม่มีหน้าปรับค่าระบบ Production'),
+              ('Audit Log', 'อ่านจาก audit_logs และการเขียนต้องผ่าน Backend ที่เชื่อถือได้'),
+            ],
+          ),
+        },
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _selected,
+        selectedIndex: _selected < 5 ? _selected : 0,
         onDestinationSelected: (index) => setState(() => _selected = index),
-        destinations: [
-          for (final section in _sections)
-            NavigationDestination(
-              icon: Icon(section.$2),
-              label: section.$1,
-            ),
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.dashboard_outlined), label: 'ภาพรวม'),
+          NavigationDestination(icon: Icon(Icons.movie_outlined), label: 'ละคร'),
+          NavigationDestination(icon: Icon(Icons.video_library_outlined), label: 'ตอน'),
+          NavigationDestination(icon: Icon(Icons.people_outline), label: 'สมาชิก'),
+          NavigationDestination(icon: Icon(Icons.analytics_outlined), label: 'รายงาน'),
         ],
       ),
     );
@@ -497,6 +565,31 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     children: [
                       const Text('รายงานและสถิติการรับชม',
                           style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      FilledButton.icon(
+                        onPressed: viewSnapshot.hasError || !viewSnapshot.hasData ? null : () async {
+                          String cell(Object? value) => '"${(value ?? '').toString().replaceAll('"', '""')}"';
+                          final csv = StringBuffer('event_id,uid,drama_id,created_at\\n');
+                          for (final doc in views) {
+                            final data = doc.data();
+                            final stamp = data['createdAt'];
+                            csv.writeln([
+                              cell(doc.id),
+                              cell(data['uid']),
+                              cell(data['dramaId']),
+                              cell(stamp is Timestamp ? stamp.toDate().toIso8601String() : ''),
+                            ].join(','));
+                          }
+                          await Clipboard.setData(ClipboardData(text: csv.toString()));
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('คัดลอก CSV ของเหตุการณ์รับชม 500 รายการล่าสุดหรือน้อยกว่าแล้ว')),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.copy),
+                        label: const Text('คัดลอก CSV เหตุการณ์รับชม'),
+                      ),
                       const SizedBox(height: 14),
                       Card(
                         child: ListTile(
@@ -775,5 +868,50 @@ class _MetricCard extends StatelessWidget {
             ),
           ]),
         ),
+      );
+}
+
+
+class AdminModulePage extends StatelessWidget {
+  const AdminModulePage({
+    required this.title,
+    required this.intro,
+    required this.items,
+    super.key,
+  });
+
+  final String title;
+  final String intro;
+  final List<(String, String)> items;
+
+  @override
+  Widget build(BuildContext context) => ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text(intro, style: TextStyle(color: Colors.white.withValues(alpha: .72))),
+          const SizedBox(height: 16),
+          for (final item in items)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.info_outline, color: AdminTheme.gold),
+                title: Text(item.$1),
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: Text(item.$2),
+                ),
+              ),
+            ),
+          const SizedBox(height: 8),
+          const Card(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'สถานะ: ยังไม่เปิดใช้งานจริงใน Production หน้านี้ไม่สร้างข้อมูลตัวอย่าง ไม่เปลี่ยนสิทธิ์ และไม่เรียกเก็บเงิน',
+              ),
+            ),
+          ),
+        ],
       );
 }
