@@ -6,6 +6,7 @@ service firebase.storage {
       allow create: if request.auth != null
         && request.auth.uid == uid
         && request.auth.token.admin == true
+        && request.auth.token.email_verified == true
         && request.resource.size < 1073741824
         && request.resource.contentType.matches('video/(mp4|quicktime|x-m4v|x-matroska|webm)');
       allow read, update, delete: if false;
