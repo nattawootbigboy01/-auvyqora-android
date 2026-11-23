@@ -44,7 +44,7 @@ describe('Firestore Rules', () => {
     await assertSucceeds(getDoc(doc(db, 'dramas/published/episodes/ep1')));
   });
 
-  it('restricts member profile and favorites to the owner', async () => {
+  it('restricts member profile and favorites to the owner and blocks role escalation', async () => {
     const db = verifiedMember().firestore();
     await assertSucceeds(getDoc(doc(db, 'users/member-uid-123')));
     await assertFails(getDoc(doc(db, 'users/other-user')));
@@ -54,6 +54,27 @@ describe('Firestore Rules', () => {
     await assertFails(setDoc(doc(db, 'users/other-user/favorites/published'), {
       dramaId: 'published', createdAt: new Date(),
     }));
+    await assertFails(setDoc(doc(db, 'users/member-uid-123'), {
+      admin: true, status: 'active', email: 'member@example.com',
+    }, { merge: true }));
+  });
+
+  it('blocks unverified and suspended members from published content', async () => {
+    const unverifiedDb = env.authenticatedContext('unverified-uid', {
+      email: 'unverified@example.com', email_verified: false,
+    }).firestore();
+    await assertFails(getDoc(doc(unverifiedDb, 'dramas/published')));
+
+    await env.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'users/suspended-uid'), {
+        email: 'suspended@example.com', status: 'suspended',
+      });
+    });
+    const suspendedDb = env.authenticatedContext('suspended-uid', {
+      email: 'suspended@example.com', email_verified: true,
+    }).firestore();
+    await assertFails(getDoc(doc(suspendedDb, 'dramas/published')));
+    await assertFails(getDoc(doc(suspendedDb, 'dramas/published/episodes/ep1')));
   });
 
   it('allows verified admins to read analytics but blocks client event and audit writes', async () => {
