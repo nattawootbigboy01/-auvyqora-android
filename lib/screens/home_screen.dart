@@ -5,6 +5,7 @@ import '../data/sample_catalog.dart';
 import '../models/drama.dart';
 import '../theme/app_theme.dart';
 import '../widgets/drama_card.dart';
+import '../widgets/ad_banner.dart';
 import 'account_screen.dart';
 import 'drama_detail_screen.dart';
 
@@ -60,6 +61,10 @@ class HomeScreen extends StatelessWidget {
               icon: const Icon(Icons.person_outline),
             ),
           ],
+        ),
+        bottomNavigationBar: const SafeArea(
+          top: false,
+          child: AdBanner(),
         ),
         body: StreamBuilder<List<Drama>>(
           stream: _watchCatalog(),
