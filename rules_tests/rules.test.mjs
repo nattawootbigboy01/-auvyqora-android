@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import { strict as assert } from 'node:assert';
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { collection, doc, getDoc, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getBytes } from 'firebase/storage';
 
 const projectId = 'demo-auvyqora';
@@ -89,6 +89,16 @@ describe('Firestore Rules', () => {
       createdAt: new Date(),
     }));
     await assertFails(getDoc(doc(verifiedMember().firestore(), 'view_events/view1')));
+  });
+
+  it('allows admin list queries for report collections and blocks members', async () => {
+    const adminDb = verifiedAdmin().firestore();
+    await assertSucceeds(getDocs(collection(adminDb, 'view_events')));
+    await assertSucceeds(getDocs(collection(adminDb, 'users')));
+    await assertSucceeds(getDocs(collection(adminDb, 'dramas')));
+
+    const memberDb = verifiedMember().firestore();
+    await assertFails(getDocs(collection(memberDb, 'view_events')));
   });
 
   it('requires verified admin claim for admin access', async () => {
