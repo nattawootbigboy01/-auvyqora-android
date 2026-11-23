@@ -424,9 +424,14 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
       final safeName = file.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
       final objectPath = 'uploads/${user.uid}/$dramaId/$episodeId/${DateTime.now().millisecondsSinceEpoch}_$safeName';
 
+      // A new source upload invalidates any previously generated playlist.
+      // Keeping the old URL here can make the player request a deleted HLS
+      // object while the replacement is still uploading or transcoding.
       await _repo.dramas.doc(dramaId).collection('episodes').doc(episodeId).update({
         'uploadStatus': 'uploading',
         'sourceObjectPath': objectPath,
+        'hlsUrl': FieldValue.delete(),
+        'transcodedAt': FieldValue.delete(),
         'uploadError': FieldValue.delete(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
