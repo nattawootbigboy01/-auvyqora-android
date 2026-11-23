@@ -296,7 +296,7 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
 
     final tempDir = await Directory.systemTemp.createTemp('auvyqora-video-');
     final safeName = file.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
-    final outputFile = File('\${tempDir.path}/$safeName');
+    final outputFile = File('${tempDir.path}/$safeName');
     final sink = outputFile.openWrite();
     var written = 0;
     const maxBytes = 1024 * 1024 * 1024;
@@ -335,7 +335,7 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
       );
     } catch (error) {
       if (context.mounted) {
-        _showError(context, 'เปิดตัวเลือกไฟล์ไม่สำเร็จ (\${error.runtimeType}): $error');
+        _showError(context, 'เปิดตัวเลือกไฟล์ไม่สำเร็จ (${error.runtimeType}): $error');
       }
       return;
     }
@@ -371,7 +371,7 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
       return;
     }
 
-    File? uploadFile;
+    late final File uploadFile;
     Directory? temporaryDirectory;
     var dialogOpen = false;
     var dialogFuture = Future<void>.value();
@@ -395,7 +395,7 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
         _ => 'video/mp4',
       };
       final safeName = file.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
-      final objectPath = 'uploads/\${user.uid}/$dramaId/$episodeId/\${DateTime.now().millisecondsSinceEpoch}_$safeName';
+      final objectPath = 'uploads/${user.uid}/$dramaId/$episodeId/${DateTime.now().millisecondsSinceEpoch}_$safeName';
 
       await _repo.dramas.doc(dramaId).collection('episodes').doc(episodeId).update({
         'uploadStatus': 'uploading',
@@ -434,7 +434,7 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
                   LinearProgressIndicator(value: progress),
                   const SizedBox(height: 12),
                   Text(total > 0
-                      ? '\${(sent / 1024 / 1024).toStringAsFixed(1)} / \${(total / 1024 / 1024).toStringAsFixed(1)} MB'
+                      ? '${(sent / 1024 / 1024).toStringAsFixed(1)} / ${(total / 1024 / 1024).toStringAsFixed(1)} MB'
                       : 'กำลังเตรียมไฟล์'),
                 ],
               ),
