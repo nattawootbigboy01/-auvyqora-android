@@ -71,7 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context, snapshot) {
         final dramas = snapshot.data ?? const <Drama>[];
         return Scaffold(
-          appBar: AppBar(
+          appBar: _tab == 3 ? null : AppBar(
             title: Text(titles[_tab],
                 style: const TextStyle(letterSpacing: 1.2, fontWeight: FontWeight.w900)),
             centerTitle: _tab != 0,
