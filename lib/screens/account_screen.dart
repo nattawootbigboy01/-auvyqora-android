@@ -5,6 +5,7 @@ import '../app_messenger.dart';
 import '../theme/app_theme.dart';
 import 'sign_in_screen.dart';
 import 'favorites_screen.dart';
+import 'membership_screen.dart';
 
 class AccountScreen extends StatelessWidget {
   const AccountScreen({super.key});
@@ -63,6 +64,13 @@ class AccountScreen extends StatelessWidget {
               const SizedBox(height: 20),
               Card(child: ListTile(leading: const Icon(Icons.favorite_outline, color: AppTheme.gold), title: const Text('รายการโปรด'), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const FavoritesScreen())))),
               Card(child: ListTile(leading: const Icon(Icons.history, color: AppTheme.gold), title: const Text('ประวัติการรับชม'), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const WatchHistoryScreen())))),
+              Card(child: ListTile(
+                leading: const Icon(Icons.workspace_premium_outlined, color: AppTheme.gold),
+                title: const Text('สมาชิกไม่มีโฆษณา'),
+                subtitle: const Text('ดูสิทธิประโยชน์และสถานะการเปิดให้บริการ'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const MembershipScreen())),
+              )),
               const SizedBox(height: 20),
               OutlinedButton.icon(
                 onPressed: () async {
