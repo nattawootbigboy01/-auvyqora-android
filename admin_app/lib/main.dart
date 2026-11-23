@@ -504,7 +504,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
                               color: hasError ? Colors.orangeAccent : AdminTheme.gold),
                           title: Text(hasError ? 'โหลดรายงานไม่สำเร็จ' : 'ข้อมูลจากเหตุการณ์รับชมจริง'),
                           subtitle: Text(hasError
-                              ? 'ตรวจสอบสิทธิ์ Admin และ Firestore Rules: ${viewSnapshot.error ?? dramaSnapshot.error ?? userSnapshot.error}'
+                              ? [
+                                  if (viewSnapshot.hasError)
+                                    'view_events: ${viewSnapshot.error}',
+                                  if (dramaSnapshot.hasError)
+                                    'dramas: ${dramaSnapshot.error}',
+                                  if (userSnapshot.hasError)
+                                    'users: ${userSnapshot.error}',
+                                ].join(' | ')
                               : 'แสดงข้อมูลสูงสุด 500 เหตุการณ์ล่าสุด'),
                         ),
                       ),
