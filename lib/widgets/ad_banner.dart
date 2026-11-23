@@ -33,10 +33,12 @@ class _AdBannerState extends State<AdBanner> {
         },
         onAdFailedToLoad: (ad, error) {
           ad.dispose();
-          if (mounted) setState(() {
-            _banner = null;
-            _loaded = false;
-          });
+          if (mounted) {
+            setState(() {
+              _banner = null;
+              _loaded = false;
+            });
+          }
           debugPrint('AdMob test banner failed: $error');
         },
       ),
