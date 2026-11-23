@@ -24,6 +24,10 @@ jobs:
           cache: true
       - name: Generate Android platform scaffold
         run: flutter create . --platforms=android --org com.auvyqora
+      - name: Render branded viewer launcher icon and uppercase label
+        run: |
+          python3 -m pip install --disable-pip-version-check cairosvg pillow
+          python3 tools/generate_launcher_icons.py --project-dir . --icon assets/branding/viewer_icon.svg --label AUVYQORA
       - name: Configure Google Mobile Ads test app ID
         run: |
           python3 - <<'PY'
@@ -132,6 +136,10 @@ jobs:
           cache: true
       - name: Generate separate admin Android app
         run: flutter create admin_app --project-name admin --platforms=android --org com.auvyqora
+      - name: Render branded admin launcher icon and uppercase label
+        run: |
+          python3 -m pip install --disable-pip-version-check cairosvg pillow
+          python3 tools/generate_launcher_icons.py --project-dir admin_app --icon assets/branding/admin_icon.svg --label "AUVYQORA ADMIN"
       - name: Install admin dependencies
         working-directory: admin_app
         run: flutter pub get
