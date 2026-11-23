@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class PlaybackTracker {
@@ -15,11 +16,13 @@ class PlaybackTracker {
     if (user == null || _viewRecorded || dramaId.isEmpty || episodeId.isEmpty) return;
     _viewRecorded = true;
     try {
-      await FirebaseFirestore.instance.collection('view_events').add({
-        'uid': user.uid, 'dramaId': dramaId, 'episodeId': episodeId,
-        'createdAt': FieldValue.serverTimestamp(),
+      await FirebaseFunctions.instance.httpsCallable('recordViewEvent').call({
+        'dramaId': dramaId,
+        'episodeId': episodeId,
       });
-    } catch (_) { _viewRecorded = false; }
+    } catch (_) {
+      _viewRecorded = false;
+    }
   }
   Future<void> savePosition(int seconds) async {
     final user = _verifiedUser;

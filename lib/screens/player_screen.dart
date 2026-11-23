@@ -35,13 +35,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
   void initState() {
     super.initState();
     _tracker = PlaybackTracker(dramaId: widget.dramaId, episodeId: widget.episodeId, dramaTitle: widget.dramaTitle, episodeTitle: widget.episodeTitle);
-    if (widget.hlsUrl.startsWith('https://') || widget.hlsUrl.startsWith('http://')) {
-      _initializePlayer();
+    final streamUri = Uri.tryParse(widget.hlsUrl);
+    if (streamUri != null && streamUri.scheme == 'https' && streamUri.hasAuthority) {
+      _initializePlayer(streamUri);
+    } else {
+      _error = widget.hlsUrl.isEmpty
+          ? 'ตอนนี้ยังไม่มีลิงก์วิดีโอ'
+          : 'ลิงก์วิดีโอไม่ปลอดภัย ระบบอนุญาตเฉพาะ HTTPS';
     }
   }
 
-  Future<void> _initializePlayer() async {
-    final controller = VideoPlayerController.networkUrl(Uri.parse(widget.hlsUrl));
+  Future<void> _initializePlayer(Uri streamUri) async {
+    final controller = VideoPlayerController.networkUrl(streamUri);
     _controller = controller;
     controller.addListener(_onControllerChanged);
     try {

@@ -2,7 +2,7 @@ const { spawn } = require("node:child_process");
 const { mkdtemp, mkdir, readFile, readdir, rm } = require("node:fs/promises");
 const { tmpdir } = require("node:os");
 const path = require("node:path");
-const { randomUUID } = require("node:crypto");
+const { randomUUID, createHash } = require("node:crypto");
 
 const { initializeApp } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
@@ -73,6 +73,73 @@ exports.setMemberStatus = onCall(async (request) => {
     throw new HttpsError("internal", "บันทึกสถานะและประวัติไม่สำเร็จ ระบบยกเลิกการเปลี่ยนสถานะแล้ว");
   }
   return { success: true, uid, status, disabled };
+});
+
+
+exports.recordViewEvent = onCall(async (request) => {
+  if (!request.auth || request.auth.token.email_verified !== true) {
+    throw new HttpsError("permission-denied", "กรุณายืนยันอีเมลก่อนบันทึกการรับชม");
+  }
+  const { dramaId, episodeId } = request.data || {};
+  if (typeof dramaId !== "string" || !dramaId || dramaId.length > 150 ||
+      typeof episodeId !== "string" || !episodeId || episodeId.length > 150) {
+    throw new HttpsError("invalid-argument", "ข้อมูลละครหรือตอนไม่ถูกต้อง");
+  }
+  const db = getFirestore();
+  const dramaRef = db.collection("dramas").doc(dramaId);
+  const episodeRef = dramaRef.collection("episodes").doc(episodeId);
+  const [drama, episode] = await Promise.all([dramaRef.get(), episodeRef.get()]);
+  if (!drama.exists || drama.get("status") !== "published" ||
+      !episode.exists || episode.get("status") !== "published") {
+    throw new HttpsError("not-found", "ไม่พบเนื้อหาที่เผยแพร่");
+  }
+
+  // One counted view per verified user/episode per ten minutes.
+  const key = createHash("sha256")
+    .update(request.auth.uid + ":" + dramaId + ":" + episodeId)
+    .digest("hex");
+  const rateRef = db.collection("view_rate_limits").doc(key);
+  const allowed = await db.runTransaction(async (tx) => {
+    const previous = await tx.get(rateRef);
+    const lastAt = previous.exists ? previous.get("lastAt") : null;
+    if (lastAt && Date.now() - lastAt.toMillis() < 10 * 60 * 1000) return false;
+    tx.set(rateRef, {
+      uid: request.auth.uid,
+      dramaId,
+      episodeId,
+      lastAt: FieldValue.serverTimestamp(),
+    });
+    return true;
+  });
+  if (allowed) {
+    await db.collection("view_events").add({
+      uid: request.auth.uid,
+      dramaId,
+      episodeId,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  }
+  return { recorded: allowed };
+});
+
+exports.recordContentAudit = onCall(async (request) => {
+  if (!request.auth || request.auth.token.admin !== true || request.auth.token.email_verified !== true) {
+    throw new HttpsError("permission-denied", "เฉพาะผู้ดูแลระบบที่ยืนยันอีเมลแล้วเท่านั้น");
+  }
+  const { action, targetType, targetId } = request.data || {};
+  if (!["create", "update", "delete"].includes(action) ||
+      !["drama", "episode"].includes(targetType) ||
+      typeof targetId !== "string" || !targetId || targetId.length > 150) {
+    throw new HttpsError("invalid-argument", "ข้อมูลประวัติการดำเนินการไม่ถูกต้อง");
+  }
+  await getFirestore().collection("audit_logs").add({
+    actorUid: request.auth.uid,
+    action,
+    targetType,
+    targetId,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+  return { success: true };
 });
 
 function runFfmpeg(args) {
@@ -215,8 +282,28 @@ exports.transcodeUploadedEpisode = onObjectFinalized({
 });
 
 
-// Remove generated media when an episode is deleted. Source uploads are removed when
-// their object path was recorded by the Admin upload flow.
+// Parent document deletion does not cascade to Firestore subcollections.
+// Remove episode documents in bounded batches; each child deletion invokes media cleanup.
+exports.cleanupDeletedDramaEpisodes = onDocumentDeleted(
+  "dramas/{dramaId}",
+  async (event) => {
+    const dramaId = event.params.dramaId;
+    const db = getFirestore();
+    const episodes = db.collection("dramas").doc(dramaId).collection("episodes");
+    let deleted = 0;
+    while (true) {
+      const page = await episodes.limit(400).get();
+      if (page.empty) break;
+      const batch = db.batch();
+      for (const doc of page.docs) batch.delete(doc.ref);
+      await batch.commit();
+      deleted += page.size;
+    }
+    console.log("Deleted drama episode documents", { dramaId, deleted });
+  }
+);
+
+// Remove generated media when an episode is deleted.
 exports.cleanupDeletedEpisodeMedia = onDocumentDeleted(
   "dramas/{dramaId}/episodes/{episodeId}",
   async (event) => {
@@ -225,18 +312,19 @@ exports.cleanupDeletedEpisodeMedia = onDocumentDeleted(
     const { dramaId, episodeId } = event.params;
     const bucket = getStorage().bucket();
     const hlsPrefix = "hls/" + dramaId + "/" + episodeId + "/";
-    const [hlsFiles] = await bucket.getFiles({ prefix: hlsPrefix });
-    if (hlsFiles.length) {
-      await Promise.all(hlsFiles.map((file) => file.delete().catch((error) => {
-        if (error.code !== 404) throw error;
-      })));
-    }
+    await bucket.deleteFiles({ prefix: hlsPrefix, force: true });
+
     const sourcePath = before.sourceObjectPath;
-    if (typeof sourcePath === "string" && sourcePath.startsWith("uploads/")) {
+    const expectedPrefix = "uploads/";
+    const expectedEpisodePath = "/" + dramaId + "/" + episodeId + "/";
+    if (typeof sourcePath === "string" &&
+        sourcePath.startsWith(expectedPrefix) &&
+        sourcePath.includes(expectedEpisodePath) &&
+        !sourcePath.includes("..")) {
       await bucket.file(sourcePath).delete().catch((error) => {
         if (error.code !== 404) throw error;
       });
     }
-    console.log("Deleted episode media cleanup complete", { dramaId, episodeId, hlsFiles: hlsFiles.length });
+    console.log("Deleted episode media cleanup complete", { dramaId, episodeId });
   }
 );

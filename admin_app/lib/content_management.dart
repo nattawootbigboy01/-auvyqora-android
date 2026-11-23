@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 
 const _gold = Color(0xFFD6B36A);
@@ -22,17 +23,15 @@ class ContentRepository {
       dramas.doc(dramaId).collection('episodes').orderBy('number').snapshots();
 
   Future<void> _audit(String action, String targetType, String targetId) async {
-    final user = FirebaseAuth.instance.currentUser;
     try {
-      await _db.collection('audit_logs').add({
-        'actorUid': user?.uid ?? '',
+      await FirebaseFunctions.instance.httpsCallable('recordContentAudit').call({
         'action': action,
         'targetType': targetType,
         'targetId': targetId,
-        'createdAt': FieldValue.serverTimestamp(),
       });
     } catch (_) {
-      // Do not report a content save as failed only because audit rules are not deployed yet.
+      // Content writes remain available if the callable has not been deployed yet.
+      // Audit writes themselves are server-only and cannot be forged by the client.
     }
   }
 
@@ -46,10 +45,12 @@ class ContentRepository {
 
   Future<void> deleteDrama(String id) async {
     final ref = dramas.doc(id);
-    final episodes = await ref.collection('episodes').get();
-    for (var i = 0; i < episodes.docs.length; i += 400) {
+    final episodes = ref.collection('episodes');
+    while (true) {
+      final page = await episodes.orderBy(FieldPath.documentId).limit(400).get();
+      if (page.docs.isEmpty) break;
       final batch = _db.batch();
-      for (final doc in episodes.docs.skip(i).take(400)) {
+      for (final doc in page.docs) {
         batch.delete(doc.reference);
       }
       await batch.commit();

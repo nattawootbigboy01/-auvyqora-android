@@ -215,3 +215,18 @@ jobs:
       - name: Check backend syntax
         working-directory: functions
         run: npm run check
+
+  rules_validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: rules_tests/package-lock.json
+      - name: Install rules test dependencies
+        working-directory: rules_tests
+        run: npm install
+      - name: Run Firestore and Storage Rules tests in emulators
+        run: npx --yes firebase-tools@14.19.0 emulators:exec --project demo-auvyqora --only firestore,storage "npm --prefix rules_tests test"

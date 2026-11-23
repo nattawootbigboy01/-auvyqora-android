@@ -69,32 +69,22 @@ service cloud.firestore {
         && request.auth.token.email_verified == true;
     }
 
-    // Playback events are written by verified viewers; only admins can read analytics.
+    // View events are written by the trusted callable backend, not directly by clients.
     match /view_events/{eventId} {
-      allow create: if request.auth != null
-        && request.auth.token.email_verified == true
-        && request.resource.data.keys().hasOnly([
-          'uid', 'dramaId', 'episodeId', 'createdAt'
-        ])
-        && request.resource.data.uid == request.auth.uid
-        && request.resource.data.dramaId is string
-        && request.resource.data.episodeId is string;
       allow read: if isAdmin();
-      allow update, delete: if false;
+      allow create, update, delete: if false;
+    }
+
+    // Backend-only rate-limit state. Clients have no direct access.
+    match /view_rate_limits/{limitId} {
+      allow read, write: if false;
     }
 
     // Append-only audit trail for privileged admin actions.
     match /audit_logs/{logId} {
       allow read: if isAdmin();
-      allow create: if isAdmin()
-        && request.resource.data.keys().hasOnly([
-          'actorUid', 'action', 'targetType', 'targetId', 'createdAt'
-        ])
-        && request.resource.data.actorUid == request.auth.uid
-        && request.resource.data.action in ['create', 'update', 'delete', 'suspend', 'activate']
-        && request.resource.data.targetType in ['drama', 'episode', 'member']
-        && request.resource.data.targetId is string;
-      allow update, delete: if false;
+      // Only Admin SDK callables may append audit records.
+      allow create, update, delete: if false;
     }
 
     match /dramas/{dramaId} {
