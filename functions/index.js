@@ -94,31 +94,42 @@ exports.recordViewEvent = onCall(async (request) => {
     throw new HttpsError("not-found", "ไม่พบเนื้อหาที่เผยแพร่");
   }
 
-  // One counted view per verified user/episode per ten minutes.
+  // Re-check suspension server-side: an already-issued ID token can remain
+  // usable briefly after an account is disabled in Firebase Authentication.
+  const memberRef = db.collection("users").doc(request.auth.uid);
+
+  // One counted view per verified user/episode per ten minutes. Commit the
+  // rate-limit marker and event together so a partial write cannot lose a view.
   const key = createHash("sha256")
     .update(request.auth.uid + ":" + dramaId + ":" + episodeId)
     .digest("hex");
   const rateRef = db.collection("view_rate_limits").doc(key);
+  const eventRef = db.collection("view_events").doc();
   const allowed = await db.runTransaction(async (tx) => {
-    const previous = await tx.get(rateRef);
+    const [member, previous] = await Promise.all([
+      tx.get(memberRef),
+      tx.get(rateRef),
+    ]);
+    if (member.exists && member.get("status") === "suspended") {
+      throw new HttpsError("permission-denied", "บัญชีนี้ถูกระงับการใช้งาน");
+    }
     const lastAt = previous.exists ? previous.get("lastAt") : null;
     if (lastAt && Date.now() - lastAt.toMillis() < 10 * 60 * 1000) return false;
+    const timestamp = FieldValue.serverTimestamp();
     tx.set(rateRef, {
       uid: request.auth.uid,
       dramaId,
       episodeId,
-      lastAt: FieldValue.serverTimestamp(),
+      lastAt: timestamp,
     });
-    return true;
-  });
-  if (allowed) {
-    await db.collection("view_events").add({
+    tx.set(eventRef, {
       uid: request.auth.uid,
       dramaId,
       episodeId,
-      createdAt: FieldValue.serverTimestamp(),
+      createdAt: timestamp,
     });
-  }
+    return true;
+  });
   return { recorded: allowed };
 });
 
