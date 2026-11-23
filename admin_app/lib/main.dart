@@ -318,8 +318,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final title = _sections[_selected].$1;
     return Scaffold(
       appBar: AppBar(
-        title: Text('AUVYQORA ADMIN • $title',
-            maxLines: 1, overflow: TextOverflow.ellipsis),
+        toolbarHeight: 72,
+        title: Text(title,
+            maxLines: 2,
+            softWrap: true,
+            overflow: TextOverflow.visible),
         actions: [
           IconButton(
             tooltip: 'ออกจากระบบ',
