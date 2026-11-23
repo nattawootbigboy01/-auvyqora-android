@@ -317,6 +317,7 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
     try {
       await _repo.dramas.doc(dramaId).collection('episodes').doc(episodeId).update({
         'uploadStatus': 'uploading',
+        'sourceObjectPath': objectPath,
         'uploadError': FieldValue.delete(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
