@@ -133,8 +133,12 @@ class _HomeScreenState extends State<HomeScreen> {
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
       children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(20, 16, 20, 2),
+          child: Text('ละครแนะนำ', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+        ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: _featuredCard(featured),
         ),
         Padding(
