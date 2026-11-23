@@ -20,6 +20,15 @@ The app, Firestore Rules, Storage Rules, and callable backend all require the ex
 
 A `role: "admin"` field or claim is **not** accepted by the current implementation. A normal user cannot grant themselves admin access. Set `admin: true` only from a trusted, access-controlled server environment using the Firebase Admin SDK. Never use a client-writable Firestore field as authorization. After changing claims, sign out and sign in again (or force-refresh the ID token) before testing the Admin app.
 
-## Current implementation boundary
+## Current implementation and deployment boundary
 
-This is the separate admin app foundation: sign-in, verified-email check, custom-claim gate, responsive dashboard shell, and navigation placeholders. Content CRUD, video upload, publishing, member operations, and revenue reporting remain disabled until secure backend endpoints, Storage rules, and server authorization are implemented and tested.
+The Admin app currently includes:
+- Email/password sign-in, verified-email check, and the server-assigned `admin: true` claim gate.
+- Drama and episode management, including draft/published status.
+- Source-video upload to the restricted Storage path and HLS processing through Cloud Functions.
+- Member activation/suspension through the authenticated `setMemberStatus` callable.
+- Read-only viewing reports and append-only admin audit history.
+
+The repository contains Firestore Rules, Storage Rules, and backend functions, plus emulator tests. Passing emulator tests does **not** prove that the matching rules/functions are deployed in Firebase project `auvyqora-c2d3a`. Verify the deployed versions and the Admin user's custom claim before diagnosing production permission errors.
+
+AdMob currently uses Google's test ad unit only. A paid ad-free membership, payment processing, subscription renewal, and revenue reporting are **not implemented**. Do not collect real payments or publish live ad IDs until those flows have server-side entitlement validation, billing verification, privacy/consent handling, and end-to-end tests.
