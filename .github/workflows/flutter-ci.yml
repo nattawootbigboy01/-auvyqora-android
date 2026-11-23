@@ -216,7 +216,7 @@ jobs:
         working-directory: functions
         run: npm run check
 
-  # Rules emulator suite validates both Firestore and Storage policies.
+  # Rules emulator suite validates both Firestore and Storage policies (Firebase SDK 11 peer set).
   rules_validate:
     runs-on: ubuntu-latest
     steps:
