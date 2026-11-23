@@ -122,11 +122,13 @@ class _HomeScreenState extends State<HomeScreen> {
     if (dramas.isEmpty) {
       return _message('ยังไม่มีละครที่เผยแพร่\nละครที่พร้อมรับชมจะแสดงที่นี่');
     }
-    final featured = dramas.firstWhere((drama) => drama.isFeatured, orElse: () => dramas.first);
-    final recommended = dramas.where((drama) => drama.isFeatured).toList();
-    final others = dramas.where((drama) => drama.id != featured.id).toList();
     final genres = <String>{'ทั้งหมด', ...dramas.map((d) => d.genre).where((g) => g.trim().isNotEmpty)};
-    final filtered = _genre == 'ทั้งหมด' ? dramas : dramas.where((d) => d.genre == _genre).toList();
+    final categoryItems = _genre == 'ทั้งหมด' ? dramas : dramas.where((d) => d.genre == _genre).toList();
+    final featured = categoryItems.firstWhere(
+      (drama) => drama.isFeatured,
+      orElse: () => categoryItems.isNotEmpty ? categoryItems.first : dramas.first,
+    );
+    final filtered = categoryItems.where((drama) => drama.id != featured.id).toList();
 
     return ListView(
       padding: const EdgeInsets.only(bottom: 24),
@@ -159,11 +161,13 @@ class _HomeScreenState extends State<HomeScreen> {
             )).toList(),
           ),
         ),
-        if (recommended.isNotEmpty)
-          _section('แนะนำสำหรับคุณ', recommended, height: 238),
-        _section(_genre == 'ทั้งหมด' ? 'ละครทั้งหมด' : _genre, filtered, height: 238),
-        if (others.isNotEmpty && _genre == 'ทั้งหมด')
-          _section('เรื่องอื่น ๆ', others, height: 238),
+        if (filtered.isNotEmpty)
+          _section(_genre == 'ทั้งหมด' ? 'เลือกชมเรื่องอื่น ๆ' : 'ละครแนว$_genre', filtered, height: 238)
+        else
+          const Padding(
+            padding: EdgeInsets.all(24),
+            child: Text('ยังไม่มีละครในหมวดนี้', textAlign: TextAlign.center),
+          ),
       ],
     );
   }
