@@ -569,7 +569,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       FilledButton.icon(
                         onPressed: viewSnapshot.hasError || !viewSnapshot.hasData ? null : () async {
                           String cell(Object? value) => '"${(value ?? '').toString().replaceAll('"', '""')}"';
-                          final csv = StringBuffer('event_id,uid,drama_id,created_at\\n');
+                          final csv = StringBuffer('event_id,uid,drama_id,created_at\n');
                           for (final doc in views) {
                             final data = doc.data();
                             final stamp = data['createdAt'];
