@@ -30,6 +30,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   String? _error;
   late final PlaybackTracker _tracker;
   int _lastPositionBucket = -1;
+  double _playbackSpeed = 1.0;
 
   @override
   void initState() {
@@ -150,6 +151,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
                           style: const TextStyle(color: Colors.white70, fontSize: 12)),
                       const Spacer(),
                       IconButton(
+                        tooltip: 'ย้อนกลับ 10 วินาที',
+                        onPressed: () => controller.seekTo(
+                          Duration(seconds: (controller.value.position.inSeconds - 10).clamp(0, controller.value.duration.inSeconds)),
+                        ),
+                        icon: const Icon(Icons.replay_10, color: Colors.white70),
+                      ),
+                      IconButton(
+                        tooltip: controller.value.isPlaying ? 'หยุดชั่วคราว' : 'เล่นต่อ',
                         onPressed: () {
                           if (controller.value.isPlaying) {
                             controller.pause();
@@ -159,6 +168,33 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         },
                         icon: Icon(controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
                             color: AppTheme.gold, size: 30),
+                      ),
+                      IconButton(
+                        tooltip: 'ไปข้างหน้า 10 วินาที',
+                        onPressed: () => controller.seekTo(
+                          Duration(seconds: (controller.value.position.inSeconds + 10).clamp(0, controller.value.duration.inSeconds)),
+                        ),
+                        icon: const Icon(Icons.forward_10, color: Colors.white70),
+                      ),
+                      PopupMenuButton<double>(
+                        tooltip: 'ความเร็วการเล่น',
+                        initialValue: _playbackSpeed,
+                        onSelected: (speed) async {
+                          await controller.setPlaybackSpeed(speed);
+                          if (mounted) setState(() => _playbackSpeed = speed);
+                        },
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(value: 0.75, child: Text('0.75x')),
+                          PopupMenuItem(value: 1.0, child: Text('ปกติ 1.0x')),
+                          PopupMenuItem(value: 1.25, child: Text('1.25x')),
+                          PopupMenuItem(value: 1.5, child: Text('1.5x')),
+                          PopupMenuItem(value: 2.0, child: Text('2.0x')),
+                        ],
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Text('${_playbackSpeed}x',
+                              style: const TextStyle(color: AppTheme.gold, fontWeight: FontWeight.bold)),
+                        ),
                       ),
                       const Spacer(),
                       Text(_time(controller.value.duration),
