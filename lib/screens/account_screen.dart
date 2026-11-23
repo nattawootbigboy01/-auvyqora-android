@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 import '../app_messenger.dart';
@@ -12,6 +13,9 @@ class AccountScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Widget tests and preview environments may intentionally run without Firebase.
+    // Do not touch FirebaseAuth.instance until a Firebase app exists.
+    if (Firebase.apps.isEmpty) return const SignInScreen();
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
