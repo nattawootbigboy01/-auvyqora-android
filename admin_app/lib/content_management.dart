@@ -22,28 +22,33 @@ class ContentRepository {
   Stream<QuerySnapshot<Map<String, dynamic>>> watchEpisodes(String dramaId) =>
       dramas.doc(dramaId).collection('episodes').orderBy('number').snapshots();
 
-  Future<void> _audit(String action, String targetType, String targetId) async {
+  Future<bool> _audit(String action, String targetType, String targetId) async {
     try {
-      await FirebaseFunctions.instance.httpsCallable('recordContentAudit').call({
+      await FirebaseFunctions.instanceFor(region: 'us-central1')
+          .httpsCallable('recordContentAudit')
+          .call({
         'action': action,
         'targetType': targetType,
         'targetId': targetId,
       });
-    } catch (_) {
-      // Content writes remain available if the callable has not been deployed yet.
-      // Audit writes themselves are server-only and cannot be forged by the client.
+      return true;
+    } catch (error) {
+      // The content operation has already succeeded. Report the audit failure
+      // separately instead of silently pretending the action was fully logged.
+      debugPrint('Admin audit write failed: ${error.runtimeType}');
+      return false;
     }
   }
 
-  Future<void> saveDrama(String? id, Map<String, dynamic> data) async {
+  Future<bool> saveDrama(String? id, Map<String, dynamic> data) async {
     final ref = id == null ? dramas.doc() : dramas.doc(id);
     final values = <String, dynamic>{...data, 'updatedAt': FieldValue.serverTimestamp()};
     if (id == null) values['createdAt'] = FieldValue.serverTimestamp();
     await ref.set(values, SetOptions(merge: true));
-    await _audit(id == null ? 'create' : 'update', 'drama', ref.id);
+    return _audit(id == null ? 'create' : 'update', 'drama', ref.id);
   }
 
-  Future<void> deleteDrama(String id) async {
+  Future<bool> deleteDrama(String id) async {
     final ref = dramas.doc(id);
     final episodes = ref.collection('episodes');
     while (true) {
@@ -56,21 +61,21 @@ class ContentRepository {
       await batch.commit();
     }
     await ref.delete();
-    await _audit('delete', 'drama', id);
+    return _audit('delete', 'drama', id);
   }
 
-  Future<void> saveEpisode(String dramaId, String? id, Map<String, dynamic> data) async {
+  Future<bool> saveEpisode(String dramaId, String? id, Map<String, dynamic> data) async {
     final collection = dramas.doc(dramaId).collection('episodes');
     final ref = id == null ? collection.doc() : collection.doc(id);
     final values = <String, dynamic>{...data, 'updatedAt': FieldValue.serverTimestamp()};
     if (id == null) values['createdAt'] = FieldValue.serverTimestamp();
     await ref.set(values, SetOptions(merge: true));
-    await _audit(id == null ? 'create' : 'update', 'episode', ref.id);
+    return _audit(id == null ? 'create' : 'update', 'episode', ref.id);
   }
 
-  Future<void> deleteEpisode(String dramaId, String id) async {
+  Future<bool> deleteEpisode(String dramaId, String id) async {
     await dramas.doc(dramaId).collection('episodes').doc(id).delete();
-    await _audit('delete', 'episode', id);
+    return _audit('delete', 'episode', id);
   }
 }
 
@@ -170,8 +175,14 @@ class ManageDramasPage extends StatelessWidget {
     title.dispose(); genre.dispose(); synopsis.dispose(); posterUrl.dispose();
     if (result == null) return;
     try {
-      await _repo.saveDrama(id, result);
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('บันทึกละครแล้ว')));
+      final audited = await _repo.saveDrama(id, result);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(audited
+              ? 'บันทึกละครและประวัติแอดมินแล้ว'
+              : 'บันทึกละครแล้ว แต่บันทึกประวัติแอดมินไม่สำเร็จ'),
+        ));
+      }
     } catch (e) { if (context.mounted) _showError(context, e); }
   }
 
@@ -181,7 +192,16 @@ class ManageDramasPage extends StatelessWidget {
       actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('ยกเลิก')), FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('ลบ'))],
     ));
     if (yes != true) return;
-    try { await _repo.deleteDrama(id); } catch (e) { if (context.mounted) _showError(context, e); }
+    try {
+      final audited = await _repo.deleteDrama(id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(audited
+              ? 'ลบละครและบันทึกประวัติแล้ว'
+              : 'ลบละครแล้ว แต่บันทึกประวัติแอดมินไม่สำเร็จ'),
+        ));
+      }
+    } catch (e) { if (context.mounted) _showError(context, e); }
   }
 }
 
@@ -522,8 +542,14 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
     title.dispose(); number.dispose(); duration.dispose(); hlsUrl.dispose();
     if (result == null) return;
     try {
-      await _repo.saveEpisode(dramaId, id, result);
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('บันทึกตอนแล้ว')));
+      final audited = await _repo.saveEpisode(dramaId, id, result);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(audited
+              ? 'บันทึกตอนและประวัติแอดมินแล้ว'
+              : 'บันทึกตอนแล้ว แต่บันทึกประวัติแอดมินไม่สำเร็จ'),
+        ));
+      }
     } catch (e) { if (context.mounted) _showError(context, e); }
   }
 
@@ -533,7 +559,16 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
       actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('ยกเลิก')), FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('ลบ'))],
     ));
     if (yes != true) return;
-    try { await _repo.deleteEpisode(dramaId, id); } catch (e) { if (context.mounted) _showError(context, e); }
+    try {
+      final audited = await _repo.deleteEpisode(dramaId, id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(audited
+              ? 'ลบตอนและบันทึกประวัติแล้ว'
+              : 'ลบตอนแล้ว แต่บันทึกประวัติแอดมินไม่สำเร็จ'),
+        ));
+      }
+    } catch (e) { if (context.mounted) _showError(context, e); }
   }
 }
 
