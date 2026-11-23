@@ -280,42 +280,123 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
   );
 
 
+  Future<File> _resolvePickedVideoFile(PlatformFile file) async {
+    final existingPath = file.path;
+    if (existingPath != null) {
+      final candidate = File(existingPath);
+      if (await candidate.exists()) return candidate;
+    }
+
+    // Some Android document providers return a stream instead of a filesystem path.
+    // Copy in chunks to app-private temp storage, never loading a large video into RAM.
+    final stream = file.readStream;
+    if (stream == null) {
+      throw StateError('ระบบเลือกไฟล์ไม่ส่งข้อมูลไฟล์กลับมา กรุณาลองเลือกไฟล์จากแอป Files อีกครั้ง');
+    }
+
+    final tempDir = await Directory.systemTemp.createTemp('auvyqora-video-');
+    final safeName = file.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+    final outputFile = File('\${tempDir.path}/$safeName');
+    final sink = outputFile.openWrite();
+    var written = 0;
+    const maxBytes = 1024 * 1024 * 1024;
+
+    try {
+      await for (final chunk in stream) {
+        written += chunk.length;
+        if (written >= maxBytes) {
+          throw StateError('ไฟล์วิดีโอต้องมีขนาดน้อยกว่า 1 GB');
+        }
+        sink.add(chunk);
+      }
+      await sink.flush();
+      await sink.close();
+      if (written == 0) {
+        throw StateError('ไฟล์ที่เลือกไม่มีข้อมูล กรุณาเลือกไฟล์ใหม่');
+      }
+      return outputFile;
+    } catch (_) {
+      await sink.close();
+      await tempDir.delete(recursive: true);
+      rethrow;
+    }
+  }
+
   Future<void> _uploadEpisodeVideo(BuildContext context, String dramaId, String episodeId) async {
-    final picked = await FilePicker.platform.pickFiles(
-      type: FileType.video,
-      allowMultiple: false,
-      withData: false,
-    );
-    if (!context.mounted || picked == null || picked.files.isEmpty) return;
+    FilePickerResult? picked;
+    try {
+      // Use the Android system picker without a restrictive MIME filter. Validate
+      // extensions ourselves because some document providers misreport video MIME.
+      picked = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+        withData: false,
+        withReadStream: true,
+      );
+    } catch (error) {
+      if (context.mounted) {
+        _showError(context, 'เปิดตัวเลือกไฟล์ไม่สำเร็จ (\${error.runtimeType}): $error');
+      }
+      return;
+    }
+
+    if (!context.mounted) return;
+    if (picked == null || picked.files.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ยกเลิกการเลือกไฟล์')),
+      );
+      return;
+    }
+
     final file = picked.files.single;
-    final path = file.path;
-    final extension = (file.extension ?? '').toLowerCase();
+    final extension = (file.extension ??
+            (file.name.contains('.') ? file.name.split('.').last : ''))
+        .toLowerCase();
     const allowed = {'mp4', 'mov', 'm4v', 'mkv', 'webm'};
-    if (path == null || !allowed.contains(extension)) {
-      _showError(context, 'รองรับไฟล์ MP4, MOV, M4V, MKV และ WEBM เท่านั้น');
+    if (!allowed.contains(extension)) {
+      _showError(context, 'ไฟล์นี้ไม่รองรับ กรุณาเลือก MP4, MOV, M4V, MKV หรือ WEBM');
       return;
     }
-    if (file.size > 1024 * 1024 * 1024) {
-      _showError(context, 'ไฟล์มีขนาดเกิน 1 GB');
+
+    // Storage Rules require size < 1 GiB, not <= 1 GiB.
+    const maxBytes = 1024 * 1024 * 1024;
+    if (file.size >= maxBytes) {
+      _showError(context, 'ไฟล์วิดีโอต้องมีขนาดน้อยกว่า 1 GB');
       return;
     }
+
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       _showError(context, 'กรุณาเข้าสู่ระบบแอดมินใหม่');
       return;
     }
-    final mime = switch (extension) {
-      'mov' => 'video/quicktime',
-      'mkv' => 'video/x-matroska',
-      'webm' => 'video/webm',
-      'm4v' => 'video/x-m4v',
-      _ => 'video/mp4',
-    };
-    final safeName = file.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
-    final objectPath = 'uploads/${user.uid}/$dramaId/$episodeId/${DateTime.now().millisecondsSinceEpoch}_$safeName';
+
+    File? uploadFile;
+    Directory? temporaryDirectory;
     var dialogOpen = false;
     var dialogFuture = Future<void>.value();
+
     try {
+      uploadFile = await _resolvePickedVideoFile(file);
+      final originalPath = file.path;
+      if (originalPath == null || !await File(originalPath).exists()) {
+        temporaryDirectory = uploadFile.parent;
+      }
+      final actualSize = await uploadFile.length();
+      if (actualSize == 0 || actualSize >= maxBytes) {
+        throw StateError('ไฟล์วิดีโอต้องมีข้อมูลและมีขนาดน้อยกว่า 1 GB');
+      }
+
+      final mime = switch (extension) {
+        'mov' => 'video/quicktime',
+        'mkv' => 'video/x-matroska',
+        'webm' => 'video/webm',
+        'm4v' => 'video/x-m4v',
+        _ => 'video/mp4',
+      };
+      final safeName = file.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+      final objectPath = 'uploads/\${user.uid}/$dramaId/$episodeId/\${DateTime.now().millisecondsSinceEpoch}_$safeName';
+
       await _repo.dramas.doc(dramaId).collection('episodes').doc(episodeId).update({
         'uploadStatus': 'uploading',
         'sourceObjectPath': objectPath,
@@ -323,8 +404,9 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
         'updatedAt': FieldValue.serverTimestamp(),
       });
       if (!context.mounted) return;
+
       final task = FirebaseStorage.instance.ref(objectPath).putFile(
-        File(path),
+        uploadFile,
         SettableMetadata(
           contentType: mime,
           customMetadata: {
@@ -352,7 +434,7 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
                   LinearProgressIndicator(value: progress),
                   const SizedBox(height: 12),
                   Text(total > 0
-                      ? '${(sent / 1024 / 1024).toStringAsFixed(1)} / ${(total / 1024 / 1024).toStringAsFixed(1)} MB'
+                      ? '\${(sent / 1024 / 1024).toStringAsFixed(1)} / \${(total / 1024 / 1024).toStringAsFixed(1)} MB'
                       : 'กำลังเตรียมไฟล์'),
                 ],
               ),
@@ -386,6 +468,16 @@ class _ManageEpisodesPageState extends State<ManageEpisodesPage> {
         });
       } catch (_) {}
       if (context.mounted) _showError(context, error);
+    } finally {
+      if (temporaryDirectory != null) {
+        try {
+          if (await temporaryDirectory.exists()) {
+            await temporaryDirectory.delete(recursive: true);
+          }
+        } catch (_) {
+          // Do not hide the original upload result if temp cleanup fails.
+        }
+      }
     }
   }
 
